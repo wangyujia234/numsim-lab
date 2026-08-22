@@ -1,0 +1,8 @@
+# 本地密钥，勿提交 / 勿上传到公开站点
+js/ai.secrets.js
+.env
+.env.*
+*.pem
+
+# 调试输出
+_ode_out.txt

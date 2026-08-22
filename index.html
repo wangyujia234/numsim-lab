@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="NumSim Lab · 本地可复现数值计算与作业验真" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>NumSim Lab · 本地计算 · 作业验真</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <button type="button" class="brand brand-btn" data-view="home" aria-label="返回首页">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <p class="brand-name">NumSim Lab</p>
+        <p class="brand-tag">本地计算 · 作业验真</p>
+      </div>
+    </button>
+    <nav class="header-nav" aria-label="主导航">
+      <button type="button" class="nav-link" data-view="home">首页</button>
+      <button type="button" class="nav-link" data-view="work">工作台</button>
+      <button type="button" class="nav-link" data-view="examples">示例</button>
+      <button type="button" class="nav-link" data-view="homework">作业</button>
+      <button type="button" class="nav-link" data-view="history">历史</button>
+      <button type="button" class="nav-link" data-view="report">报告</button>
+    </nav>
+    <div class="header-tools">
+      <div class="mode-switch" role="group" aria-label="运行模式">
+        <button type="button" class="mode-btn active" id="mode-demo" data-mode="demo">演示</button>
+        <button type="button" class="mode-btn" id="mode-homework" data-mode="homework">作业</button>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm theme-toggle" id="btn-theme" aria-label="切换浅色/深色主题">浅色</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="view view-home active" id="view-home" data-view-panel="home" aria-label="首页">
+    <div class="hero" id="top">
+      <div class="hero-copy">
+        <h1 class="hero-brand">NumSim</h1>
+        <p class="hero-lead">作业结果在浏览器本地算出，带参数锁定与 SHA-256 验真印章，可复核、可批改。</p>
+        <p class="hero-contrast">通用 AI 聊天只能口述数值；NumSim 用同一引擎复现同一哈希。</p>
+        <div class="hero-cta">
+          <button type="button" class="btn btn-primary" id="btn-ican-demo">3 分钟验真演示</button>
+          <button type="button" class="btn btn-ghost" data-view="work">进入工作台</button>
+          <button type="button" class="btn btn-ghost" data-view="homework">作业模式</button>
+        </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <canvas id="hero-canvas" width="720" height="420"></canvas>
+      </div>
+    </div>
+
+    <div class="contrast-strip" aria-label="与通用 AI 聊天的对比">
+      <div class="contrast-col contrast-bad">
+        <strong>ChatGPT 式口述</strong>
+        <ul>
+          <li>数值不可复现</li>
+          <li>题目参数可随意改写</li>
+          <li>教师难以核对来源</li>
+        </ul>
+      </div>
+      <div class="contrast-col contrast-good">
+        <strong>NumSim 作业验真</strong>
+        <ul>
+          <li>本地引擎出数 + 哈希</li>
+          <li>关键字段锁定不可改题</li>
+          <li>自检规则 + 印章可复核</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="home-modules">
+      <h2 class="home-modules-title">选择模块开始</h2>
+      <p class="section-lead">演示模式可自由试算；作业模式走锁参、自检与验真印章。</p>
+      <div class="module-grid" id="module-grid">
+        <button type="button" class="module-card" data-open-type="interpolate">
+          <span class="module-kicker">Interpolate</span>
+          <strong>插值</strong>
+          <span>样条 / Lagrange / Newton</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="integrate">
+          <span class="module-kicker">Integrate</span>
+          <strong>积分</strong>
+          <span>Simpson / 自适应 / Romberg</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="ode">
+          <span class="module-kicker">ODE</span>
+          <strong>微分方程</strong>
+          <span>RK45 / RK4 / Euler</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="circuit">
+          <span class="module-kicker">Circuit</span>
+          <strong>电路计算</strong>
+          <span>RLC 阶跃与频响</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="imagefit">
+          <span class="module-kicker">Image</span>
+          <strong>图像拟合</strong>
+          <span>曲线数字化 + 拟合</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="transform">
+          <span class="module-kicker">Transform</span>
+          <strong>积分变换</strong>
+          <span>FFT / 傅里叶 / 拉普拉斯</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="control">
+          <span class="module-kicker">Control</span>
+          <strong>控制系统</strong>
+          <span>PID / Bode / 根轨迹</span>
+        </button>
+        <button type="button" class="module-card" data-open-type="pde">
+          <span class="module-kicker">PDE</span>
+          <strong>偏微分方程</strong>
+          <span>一维热传导 FTCS</span>
+        </button>
+      </div>
+    </div>
+    </section>
+
+    <section class="view view-work" id="view-work" data-view-panel="work" aria-label="工作台" hidden>
+    <div class="view-toolbar">
+      <div>
+        <h2 class="view-title">工作台</h2>
+        <p class="view-sub" id="work-type-label">当前模块：插值</p>
+      </div>
+      <div class="view-toolbar-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-workspace-export">导出工作区</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-workspace-import">导入工作区</button>
+        <input id="workspace-import-file" type="file" accept="application/json,.json" hidden />
+        <button type="button" class="btn btn-ghost btn-sm" data-view="examples">示例</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-view="report">报告</button>
+      </div>
+    </div>
+    <ol class="demo-steps" id="ican-demo-steps" hidden aria-label="验真演示进度">
+      <li data-step="lock">选题锁定</li>
+      <li data-step="run">本地计算</li>
+      <li data-step="check">教师自检</li>
+      <li data-step="seal">印章报告</li>
+    </ol>
+    <div class="draft-banner" id="draft-banner" hidden>
+      <div>
+        <strong id="draft-banner-title">工作草稿</strong>
+        <p id="draft-banner-text">已自动保存当前输入（含图像拟合）。可以一键恢复，或用工具栏导入/导出带走完整状态。</p>
+      </div>
+      <div class="draft-banner-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-draft-restore">恢复草稿</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-draft-clear">清除草稿</button>
+      </div>
+    </div>
+    <div class="workspace" id="workspace">
+      <div class="panel input-panel">
+        <div class="panel-head">
+          <h2>问题输入</h2>
+          <p id="input-lead">写一句描述即可：规则 Agent 或 DeepSeek 分析选型，本地引擎完成计算。</p>
+        </div>
+
+        <div id="hw-banner" class="hw-banner" hidden>
+          <div class="hw-banner-head">
+            <strong id="hw-banner-title">作业模式</strong>
+            <button type="button" class="btn btn-tiny" id="btn-hw-clear">退出本题</button>
+          </div>
+          <p id="hw-banner-problem" class="hw-banner-problem"></p>
+          <p id="hw-banner-hint" class="hint-line"></p>
+          <p class="hw-banner-claim">数值由本地引擎计算 · AI 不提供最终数值答案</p>
+        </div>
+
+        <details class="ai-panel" id="ai-panel">
+          <summary>DeepSeek 智能分析（可选）</summary>
+          <div class="ai-panel-body">
+            <label class="check-row">
+              <input type="checkbox" id="ai-enabled" />
+              <span>启用 DeepSeek 接管分析步骤</span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="ai-use-proxy" />
+              <span>使用 Netlify 代理（服务端 DEEPSEEK_API_KEY）</span>
+            </label>
+            <label class="field">
+              <span>模型</span>
+              <select id="ai-model">
+                <option value="deepseek-chat">deepseek-chat（更快）</option>
+                <option value="deepseek-reasoner">deepseek-reasoner（更强推理）</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>API Key（仅保存在本机浏览器）</span>
+              <input id="ai-apikey" type="password" autocomplete="off" placeholder="sk-..." />
+            </label>
+            <p class="hint-line">优先使用 Netlify 代理（前端可不放 Key）。失败时若有 Key 会自动直连；DeepSeek 失败则降级本地 Agent。计算始终在浏览器本地完成。</p>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-ai-save">保存 AI 设置</button>
+          </div>
+        </details>
+
+        <label class="field module-select-field">
+          <span>当前模块</span>
+          <select id="module-select" aria-label="选择仿真模块">
+            <option value="interpolate">插值</option>
+            <option value="integrate">积分</option>
+            <option value="ode">微分方程</option>
+            <option value="circuit">电路计算</option>
+            <option value="imagefit">图像拟合</option>
+            <option value="transform">积分变换</option>
+            <option value="control">控制系统</option>
+            <option value="pde">偏微分方程</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>问题描述</span>
+          <textarea id="nl-input" rows="3" placeholder="例如：二阶系统阶跃，ζ=0.3，ωn=2&#10;或：PID 控制一阶对象&#10;或：一维热方程 α=0.1"></textarea>
+        </label>
+
+        <label class="check-row compare-row" id="compare-row">
+          <input type="checkbox" id="compare-algs" />
+          <span>多算法对比（插值 / 积分 / ODE / 变换）</span>
+        </label>
+
+        <details class="sweep-panel" id="sweep-panel">
+          <summary>参数扫描（灵敏度）</summary>
+          <div class="sweep-body">
+            <label class="check-row">
+              <input type="checkbox" id="sweep-enabled" />
+              <span>启用参数扫描（多曲线叠加）</span>
+            </label>
+            <label class="field">
+              <span>扫描参数</span>
+              <select id="sweep-param"></select>
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span>最小</span>
+                <input id="sweep-min" type="text" value="0.1" />
+              </label>
+              <label class="field">
+                <span>最大</span>
+                <input id="sweep-max" type="text" value="1.2" />
+              </label>
+              <label class="field">
+                <span>点数</span>
+                <input id="sweep-steps" type="text" value="5" />
+              </label>
+            </div>
+            <p class="hint-line">适用于二阶 ζ/ωn、PID Kp、热方程 α、ODE y0 等。</p>
+          </div>
+        </details>
+
+        <div class="actions" style="margin-bottom:0.85rem">
+          <button type="button" class="btn btn-ghost" id="btn-autofill">自动生成 / 解析数据</button>
+          <button type="button" class="btn btn-ghost" id="btn-share">复制分享链接</button>
+        </div>
+
+        <div class="module-params">
+          <h3 class="module-params-title">模块参数</h3>
+
+        <div id="form-interpolate" class="type-form active">
+          <label class="field">
+            <span>采样点 x（逗号分隔）</span>
+            <input id="interp-x" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 1, 2, 3, 4, 5" />
+          </label>
+          <label class="field">
+            <span>采样点 y（逗号分隔）</span>
+            <input id="interp-y" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 0.8, 0.9, 0.1, -0.8, -1" />
+          </label>
+          <label class="field">
+            <span>查询点（可选，逗号分隔）</span>
+            <input id="interp-query" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]*" title="仅允许数字、逗号、小数点、负号" value="0.5, 2.5, 4.2" />
+          </label>
+        </div>
+
+        <div id="form-integrate" class="type-form">
+          <label class="field">
+            <span>被积函数 f(x)</span>
+            <input id="integ-f" type="text" value="sin(x)*exp(-0.1*x)" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>下限 a</span>
+              <input id="integ-a" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>上限 b</span>
+              <input id="integ-b" type="text" value="10" />
+            </label>
+            <label class="field">
+              <span>子区间数 n</span>
+              <input id="integ-n" type="text" value="200" />
+            </label>
+          </div>
+        </div>
+
+        <div id="form-ode" class="type-form">
+          <label class="field">
+            <span>一阶 ODE：y' = f(t, y)</span>
+            <input id="ode-f" type="text" value="-0.5*y + sin(t)" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>初值 y(t0)</span>
+              <input id="ode-y0" type="text" value="1" />
+            </label>
+            <label class="field">
+              <span>t0</span>
+              <input id="ode-t0" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>tf</span>
+              <input id="ode-tf" type="text" value="20" />
+            </label>
+            <label class="field">
+              <span>步数</span>
+              <input id="ode-n" type="text" value="400" />
+            </label>
+          </div>
+        </div>
+
+        <div id="form-circuit" class="type-form">
+          <label class="field">
+            <span>电路拓扑</span>
+            <select id="ckt-topo">
+              <option value="series_rlc">串联 RLC 阶跃响应</option>
+              <option value="parallel_rc">并联 RC 放电</option>
+              <option value="series_rl">串联 RL 电流响应</option>
+              <option value="ac_rlc">串联 RLC 频率响应</option>
+            </select>
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>R (Ω)</span>
+              <input id="ckt-r" type="text" value="10" />
+            </label>
+            <label class="field">
+              <span>L (H)</span>
+              <input id="ckt-l" type="text" value="0.5" />
+            </label>
+            <label class="field">
+              <span>C (F)</span>
+              <input id="ckt-c" type="text" value="0.001" />
+            </label>
+            <label class="field">
+              <span>V / I0</span>
+              <input id="ckt-src" type="text" value="12" />
+            </label>
+          </div>
+        </div>
+
+        <div id="form-imagefit" class="type-form">
+          <p class="hint-line">上传曲线图 → 填写坐标轴范围 → 图上点击取点，或一键自动采样 → 拟合函数</p>
+          <label class="field">
+            <span>上传图像</span>
+            <input id="img-file" type="file" accept="image/*" />
+          </label>
+          <div class="actions" style="margin-bottom:0.75rem">
+            <button type="button" class="btn btn-tiny" id="btn-img-demo">加载演示图</button>
+            <button type="button" class="btn btn-tiny" id="btn-img-auto">自动采样曲线</button>
+            <button type="button" class="btn btn-tiny" id="btn-img-undo">撤销一点</button>
+            <button type="button" class="btn btn-tiny" id="btn-img-clear">清空取点</button>
+            <span id="img-point-count" class="muted">已取点 0</span>
+          </div>
+          <canvas id="img-canvas" class="img-canvas" width="640" height="360"></canvas>
+          <div class="field-row">
+            <label class="field">
+              <span>xmin</span>
+              <input id="img-xmin" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>xmax</span>
+              <input id="img-xmax" type="text" value="10" />
+            </label>
+            <label class="field">
+              <span>ymin</span>
+              <input id="img-ymin" type="text" value="-1" />
+            </label>
+            <label class="field">
+              <span>ymax</span>
+              <input id="img-ymax" type="text" value="1" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>拟合方式</span>
+              <select id="img-method">
+                <option value="poly">多项式最小二乘</option>
+                <option value="spline">三次样条（光滑插值）</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>多项式次数</span>
+              <input id="img-degree" type="text" value="3" />
+            </label>
+            <label class="field">
+              <span>边距比例</span>
+              <input id="img-margin" type="text" value="0.06" />
+            </label>
+          </div>
+        </div>
+
+        <div id="form-transform" class="type-form">
+          <label class="field">
+            <span>信号 f(t)</span>
+            <input id="xf-f" type="text" value="exp(-0.3*t)*sin(2*PI*1.5*t)" />
+          </label>
+          <label class="field">
+            <span>变换类型</span>
+            <select id="xf-method">
+              <option value="fft">FFT 频谱</option>
+              <option value="fourier">数值傅里叶</option>
+              <option value="laplace">数值拉普拉斯</option>
+            </select>
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>t0</span>
+              <input id="xf-t0" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>tf</span>
+              <input id="xf-tf" type="text" value="8" />
+            </label>
+            <label class="field">
+              <span>点数 N / 网格</span>
+              <input id="xf-n" type="text" value="512" />
+            </label>
+            <label class="field">
+              <span>fMax (Hz)</span>
+              <input id="xf-fmax" type="text" value="5" />
+            </label>
+          </div>
+          <label class="field">
+            <span>拉普拉斯实部 σ（仅 Laplace）</span>
+            <input id="xf-sigma" type="text" value="0.5" />
+          </label>
+        </div>
+
+        <div id="form-control" class="type-form">
+          <p class="hint-line">面向自动化：阶跃 / PID / Bode / 电机 / 根轨迹 / Z 变换 / 极点配置 / 传感器标定</p>
+          <label class="field">
+            <span>仿真类型</span>
+            <select id="ctl-method">
+              <option value="second_order">二阶系统阶跃（ζ–ωn）</option>
+              <option value="tf_step">传递函数阶跃响应</option>
+              <option value="pid">PID 闭环控制</option>
+              <option value="bode">Bode 幅相频特性</option>
+              <option value="dc_motor">直流电机转速响应</option>
+              <option value="rlocus">根轨迹</option>
+              <option value="z_transform">数值 Z 变换（单位圆）</option>
+              <option value="z_tf_step">离散 TF 阶跃 + Jury</option>
+              <option value="jury">Jury 稳定性判据</option>
+              <option value="pole_place">状态反馈极点配置</option>
+              <option value="sensor_cal">传感器标定</option>
+            </select>
+          </label>
+          <div class="field-row" id="ctl-row-2nd" data-ctl="second_order,pid,tf_step,dc_motor,pole_place">
+            <label class="field" data-ctl="second_order,pid">
+              <span>阻尼比 ζ</span>
+              <input id="ctl-zeta" type="text" value="0.3" />
+            </label>
+            <label class="field" data-ctl="second_order,pid">
+              <span>自然频率 ωn</span>
+              <input id="ctl-wn" type="text" value="2" />
+            </label>
+            <label class="field" data-ctl="second_order,pid,tf_step,dc_motor">
+              <span>增益 K</span>
+              <input id="ctl-K" type="text" value="1" />
+            </label>
+            <label class="field" data-ctl="second_order,pid,tf_step,dc_motor,pole_place">
+              <span>仿真时长 tf</span>
+              <input id="ctl-tf" type="text" value="8" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-tf" data-ctl="tf_step,bode,rlocus,z_tf_step,jury">
+            <label class="field" data-ctl="tf_step,bode,rlocus,z_tf_step">
+              <span>分子系数（高次→低次，逗号分隔）</span>
+              <input id="ctl-num" type="text" value="1" />
+            </label>
+            <label class="field">
+              <span>分母 / 特征多项式（高次→低次）</span>
+              <input id="ctl-den" type="text" value="1, 2, 2" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-pid" data-ctl="pid">
+            <label class="field">
+              <span>PID：Kp</span>
+              <input id="ctl-kp" type="text" value="2" />
+            </label>
+            <label class="field">
+              <span>Ki</span>
+              <input id="ctl-ki" type="text" value="1" />
+            </label>
+            <label class="field">
+              <span>Kd</span>
+              <input id="ctl-kd" type="text" value="0.2" />
+            </label>
+            <label class="field">
+              <span>对象</span>
+              <select id="ctl-plant">
+                <option value="first">一阶 τẏ+y=Ku</option>
+                <option value="second">二阶</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-plant" data-ctl="pid,dc_motor,bode">
+            <label class="field" data-ctl="pid">
+              <span>一阶时间常数 τ</span>
+              <input id="ctl-tau" type="text" value="1" />
+            </label>
+            <label class="field" data-ctl="dc_motor">
+              <span>电机 Va (V)</span>
+              <input id="ctl-va" type="text" value="12" />
+            </label>
+            <label class="field" data-ctl="bode">
+              <span>Bode fMin (Hz)</span>
+              <input id="ctl-fmin" type="text" value="0.01" />
+            </label>
+            <label class="field" data-ctl="bode">
+              <span>Bode fMax (Hz)</span>
+              <input id="ctl-fmax" type="text" value="100" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-rlocus" data-ctl="rlocus">
+            <label class="field">
+              <span>根轨迹 K 最小</span>
+              <input id="ctl-kmin" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>根轨迹 K 最大</span>
+              <input id="ctl-kmax" type="text" value="50" />
+            </label>
+            <label class="field">
+              <span>K 采样点数</span>
+              <input id="ctl-nk" type="text" value="200" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-z" data-ctl="z_transform,z_tf_step">
+            <label class="field" data-ctl="z_transform">
+              <span>采样周期 T</span>
+              <input id="ctl-T" type="text" value="0.1" />
+            </label>
+            <label class="field">
+              <span>序列长度 N / 阶跃步数</span>
+              <input id="ctl-zn" type="text" value="64" />
+            </label>
+            <label class="field" data-ctl="z_transform">
+              <span>衰减 α（默认序列）</span>
+              <input id="ctl-zalpha" type="text" value="0.3" />
+            </label>
+            <label class="field" data-ctl="z_transform">
+              <span>频率 f0 Hz</span>
+              <input id="ctl-zfreq" type="text" value="1.5" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-seq" data-ctl="z_transform">
+            <label class="field">
+              <span>自定义序列（可选，逗号分隔；空则用衰减正弦）</span>
+              <input id="ctl-seq" type="text" value="" placeholder="留空则自动生成" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-place" data-ctl="pole_place">
+            <label class="field">
+              <span>状态维数 n</span>
+              <input id="ctl-order" type="text" value="2" />
+            </label>
+            <label class="field">
+              <span>A 矩阵（行主序，逗号分隔）</span>
+              <input id="ctl-A" type="text" value="0,1,-2,-3" />
+            </label>
+            <label class="field">
+              <span>B 向量</span>
+              <input id="ctl-B" type="text" value="0,1" />
+            </label>
+            <label class="field">
+              <span>期望极点（实数或 a±bj）</span>
+              <input id="ctl-poles" type="text" value="-4,-5" />
+            </label>
+          </div>
+          <div class="field-row" id="ctl-row-sensor" data-ctl="sensor_cal">
+            <label class="field">
+              <span>参考值 xref</span>
+              <input id="ctl-xref" type="text" value="0,1,2,3,4,5" />
+            </label>
+            <label class="field">
+              <span>测量值 ymeas</span>
+              <input id="ctl-ymeas" type="text" value="0.05,1.1,1.95,3.05,4.1,4.9" />
+            </label>
+            <label class="field">
+              <span>拟合次数</span>
+              <input id="ctl-caldeg" type="text" value="1" />
+            </label>
+          </div>
+        </div>
+
+        <div id="form-pde" class="type-form">
+          <p class="hint-line">一维热传导 u_t = α u_xx，Dirichlet 边界；FTCS 须 r≤0.5，Crank–Nicolson 无条件稳定</p>
+          <div class="field-row">
+            <label class="field">
+              <span>差分格式</span>
+              <select id="pde-scheme">
+                <option value="ftcs">FTCS（显式）</option>
+                <option value="cn" selected>Crank–Nicolson</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>扩散系数 α</span>
+              <input id="pde-alpha" type="text" value="0.1" />
+            </label>
+            <label class="field">
+              <span>杆长 L</span>
+              <input id="pde-L" type="text" value="1" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>空间分段 nx</span>
+              <input id="pde-nx" type="text" value="40" />
+            </label>
+            <label class="field">
+              <span>终时 tf</span>
+              <input id="pde-tf" type="text" value="0.5" />
+            </label>
+            <label class="field">
+              <span>时间步 nt</span>
+              <input id="pde-nt" type="text" value="200" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>初值</span>
+              <select id="pde-ic">
+                <option value="sine">sin(πx/L)</option>
+                <option value="tent">三角脉冲</option>
+                <option value="pulse">方脉冲</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>左边界 u(0)</span>
+              <input id="pde-uleft" type="text" value="0" />
+            </label>
+            <label class="field">
+              <span>右边界 u(L)</span>
+              <input id="pde-uright" type="text" value="0" />
+            </label>
+          </div>
+        </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btn-run">Agent 分析并仿真</button>
+          <button type="button" class="btn btn-ghost" id="btn-clear">清空结果</button>
+        </div>
+
+        <div class="agent-log-wrap">
+          <div class="agent-log" id="agent-log" aria-live="polite">
+            <p class="muted">等待输入…</p>
+          </div>
+          <button type="button" class="btn btn-tiny btn-log-clear" id="btn-log-clear" title="清空日志" aria-label="清空日志">×</button>
+        </div>
+      </div>
+
+      <div class="panel result-panel">
+        <div class="panel-head row-between">
+          <div>
+            <h2>仿真结果</h2>
+            <p id="algo-badge">算法未选定</p>
+            <div id="selfcheck-badge" class="selfcheck-badge" hidden></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-goto-report" hidden>查看报告</button>
+        </div>
+
+        <div id="error-fixes" class="error-fixes" hidden></div>
+
+        <div class="result-tabs">
+          <button type="button" class="result-tab active" data-pane="plot">曲线</button>
+          <button type="button" class="result-tab" data-pane="python">Python</button>
+          <button type="button" class="result-tab" data-pane="matlab">MATLAB</button>
+          <button type="button" class="result-tab" data-pane="metrics">数值</button>
+        </div>
+
+        <div id="pane-plot" class="result-pane active">
+          <div id="plot" class="plot-box"></div>
+        </div>
+        <div id="pane-python" class="result-pane">
+          <div class="code-toolbar">
+            <span>Python</span>
+            <button type="button" class="btn btn-tiny" data-copy="python-code">复制</button>
+          </div>
+          <pre><code id="python-code"># 运行仿真后生成</code></pre>
+        </div>
+        <div id="pane-matlab" class="result-pane">
+          <div class="code-toolbar">
+            <span>MATLAB</span>
+            <button type="button" class="btn btn-tiny" data-copy="matlab-code">复制</button>
+          </div>
+          <pre><code id="matlab-code">% 运行仿真后生成</code></pre>
+        </div>
+        <div id="pane-metrics" class="result-pane">
+          <div class="code-toolbar">
+            <span>数值结果</span>
+            <button type="button" class="btn btn-tiny" id="btn-copy-metrics">复制全部</button>
+          </div>
+          <div id="metrics" class="metrics-grid"></div>
+        </div>
+      </div>
+    </div>
+    </section>
+
+    <section class="view view-examples" id="view-examples" data-view-panel="examples" aria-label="示例" hidden>
+      <div class="view-toolbar">
+        <div>
+          <h2 class="view-title">示例问题</h2>
+          <p class="view-sub">点击卡片：跳转工作台、填入参数并运行。</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" data-view="work">返回工作台</button>
+      </div>
+      <div class="example-filters" id="example-filters" role="tablist" aria-label="示例筛选">
+        <button type="button" class="filter-chip active" data-filter="all">全部</button>
+        <button type="button" class="filter-chip" data-filter="interpolate">插值</button>
+        <button type="button" class="filter-chip" data-filter="integrate">积分</button>
+        <button type="button" class="filter-chip" data-filter="ode">微分方程</button>
+        <button type="button" class="filter-chip" data-filter="circuit">电路</button>
+        <button type="button" class="filter-chip" data-filter="imagefit">图像</button>
+        <button type="button" class="filter-chip" data-filter="transform">变换</button>
+        <button type="button" class="filter-chip" data-filter="control">控制</button>
+        <button type="button" class="filter-chip" data-filter="pde">PDE</button>
+      </div>
+      <div class="example-grid" id="example-grid"></div>
+      <p class="example-empty muted" id="example-empty" hidden>该分类暂无示例，试试「全部」或其他模块。</p>
+    </section>
+
+    <section class="view view-homework" id="view-homework" data-view-panel="homework" aria-label="作业" hidden>
+      <div class="view-toolbar">
+        <div>
+          <h2 class="view-title">作业模式</h2>
+          <p class="view-sub">锁参防改题 · 本地引擎出数 · 印章可复核。DeepSeek 在此模式关闭。</p>
+        </div>
+        <div class="view-toolbar-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-ican-demo-hw">3 分钟验真演示</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-view="work">返回工作台</button>
+        </div>
+      </div>
+      <div class="hw-intro panel">
+        <ol class="hw-rules">
+          <li><strong>锁参防改题：</strong>关键字段只读，学生不能改写成另一道题。</li>
+          <li><strong>本地引擎出数：</strong>积分/ODE/控制等结果在浏览器算出，不是大模型口述。</li>
+          <li><strong>印章可复核：</strong>报告带 SHA-256 哈希；教师可当场重算核对。</li>
+        </ol>
+      </div>
+      <div class="example-filters" id="hw-filters" role="tablist" aria-label="课程筛选">
+        <button type="button" class="filter-chip active" data-hw-course="all">全部</button>
+      </div>
+      <div class="homework-grid" id="homework-grid"></div>
+    </section>
+
+    <section class="view view-history" id="view-history" data-view-panel="history" aria-label="历史" hidden>
+      <div class="view-toolbar">
+        <div>
+          <h2 class="view-title">本地历史</h2>
+          <p class="view-sub">最近 20 次仿真，可一键恢复参数并重跑。</p>
+        </div>
+        <div class="view-toolbar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-history-clear">清空历史</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-view="work">返回工作台</button>
+        </div>
+      </div>
+      <div class="history-list" id="history-list"></div>
+      <p class="example-empty muted" id="history-empty" hidden>暂无历史记录，完成一次仿真后会出现在这里。</p>
+    </section>
+
+    <section class="view view-report" id="view-report" data-view-panel="report" aria-label="报告" hidden>
+      <div class="view-toolbar">
+        <div>
+          <h2 class="view-title">结果报告</h2>
+          <p class="view-sub">结构化摘要 · 验真印章 · 可导出 Markdown / Zip。</p>
+        </div>
+        <div class="view-toolbar-actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-view="work">返回工作台</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-export" disabled>导出 Markdown</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-export-zip" disabled>打包下载 Zip</button>
+        </div>
+      </div>
+      <div id="selfcheck-banner" class="selfcheck-banner" hidden></div>
+      <div class="teacher-verify panel" id="teacher-verify">
+        <div class="teacher-verify-head">
+          <strong>教师复核</strong>
+          <p class="muted">重算当前印章哈希，或导入学生提交的 stamp.json。</p>
+        </div>
+        <div class="teacher-verify-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-verify-current" disabled>复核当前结果</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-verify-import">导入 stamp.json</button>
+          <input id="verify-import-file" type="file" accept="application/json,.json" hidden />
+        </div>
+        <p class="teacher-verify-result" id="teacher-verify-result" hidden></p>
+      </div>
+      <div class="panel report-panel">
+        <article id="report-body" class="report-body">
+          <p class="muted">完成一次仿真后，此处生成完整报告。</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>NumSim Lab · 本地数值引擎 · 作业验真印章 · 可选生成 Python / MATLAB</p>
+    <p class="privacy-note">本网站为个人演示仿真工具，请勿输入身份证、密码等敏感信息。计算均在浏览器本地完成，不会上传你的输入内容。</p>
+  </footer>
+
+  <dialog class="ai-dialog" id="ai-confirm-dialog">
+    <form method="dialog" class="ai-dialog-body">
+      <h3>确认 DeepSeek 分析方案</h3>
+      <p class="muted" id="ai-confirm-summary"></p>
+      <ul id="ai-confirm-fields" class="ai-confirm-fields"></ul>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary" value="confirm" id="ai-confirm-ok">确认并仿真</button>
+        <button type="submit" class="btn btn-ghost" value="edit">留在表单修改</button>
+        <button type="submit" class="btn btn-ghost" value="fallback">改用本地 Agent</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/app.js?v=ican1"></script>
+</body>
+</html>
