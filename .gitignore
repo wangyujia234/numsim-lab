@@ -6,3 +6,8 @@ js/ai.secrets.js
 
 # 调试输出
 _ode_out.txt
+
+# Netlify 本地函数构建产物（线上自动构建，勿提交）
+netlify/functions/*.zip
+netlify/functions/manifest.json
+.netlify/
