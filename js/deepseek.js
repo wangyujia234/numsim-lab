@@ -12,15 +12,33 @@
 
 
 
-import { LOCAL_DEEPSEEK_KEY, LOCAL_AI_ENABLED_DEFAULT } from "./ai.secrets.js";
-
-
-
 const STORAGE_KEY = "numsim.deepseek";
 
 const API_URL = "https://api.deepseek.com/chat/completions";
 
 const PROXY_URL = "/.netlify/functions/deepseek";
+
+
+
+// ai.secrets.js 为可选本地密钥文件（被 .gitignore 排除，不会部署）。
+// 动态导入 + 容错：文件缺失（如公网部署）时回退到空默认值，不影响应用启动。
+const secrets = { key: "", enabledDefault: false };
+
+try {
+
+  const mod = await import("./ai.secrets.js");
+
+  secrets.key = String(mod.LOCAL_DEEPSEEK_KEY || "");
+
+  secrets.enabledDefault = !!mod.LOCAL_AI_ENABLED_DEFAULT;
+
+} catch {
+
+  secrets.key = "";
+
+  secrets.enabledDefault = false;
+
+}
 
 
 
@@ -82,13 +100,13 @@ function defaultSettings() {
 
   return {
 
-    enabled: !!LOCAL_AI_ENABLED_DEFAULT,
+    enabled: !!secrets.enabledDefault,
 
-    apiKey: String(LOCAL_DEEPSEEK_KEY || ""),
+    apiKey: secrets.key,
 
     model: "deepseek-chat",
 
-    useProxy: onNetlify || !LOCAL_DEEPSEEK_KEY,
+    useProxy: onNetlify || !secrets.key,
 
   };
 
@@ -112,7 +130,7 @@ export function loadAiSettings() {
 
       enabled: o.enabled != null ? !!o.enabled : base.enabled,
 
-      apiKey: String(o.apiKey || LOCAL_DEEPSEEK_KEY || ""),
+      apiKey: String(o.apiKey || secrets.key || ""),
 
       model: o.model === "deepseek-reasoner" ? "deepseek-reasoner" : "deepseek-chat",
 
