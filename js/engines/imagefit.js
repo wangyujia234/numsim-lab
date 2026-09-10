@@ -220,7 +220,49 @@ function sortUnique(x, y) {
   return { xs, ys };
 }
 
-export function runImageFit({ x, y, degree, method }) {
+function fourierFit(x, y, nHarmonic) {
+  const L = Math.max(x[x.length - 1] - x[0], 1e-9);
+  const x0 = x[0];
+  const K = Math.max(1, Math.min(nHarmonic | 0, 8, Math.floor((x.length - 1) / 2)));
+  const cols = 1 + 2 * K;
+  const A = Array.from({ length: cols }, () => new Array(cols).fill(0));
+  const b = new Array(cols).fill(0);
+  for (let i = 0; i < x.length; i++) {
+    const t = (2 * Math.PI * (x[i] - x0)) / L;
+    const row = new Array(cols);
+    row[0] = 1;
+    for (let k = 1; k <= K; k++) {
+      row[2 * k - 1] = Math.cos(k * t);
+      row[2 * k] = Math.sin(k * t);
+    }
+    for (let r = 0; r < cols; r++) {
+      b[r] += row[r] * y[i];
+      for (let c = 0; c < cols; c++) A[r][c] += row[r] * row[c];
+    }
+  }
+  const coef = solveSymmetric(A, b);
+  return { coef, K, L, x0 };
+}
+
+function fourierVal(coef, K, L, x0, x) {
+  const t = (2 * Math.PI * (x - x0)) / L;
+  let s = coef[0];
+  for (let k = 1; k <= K; k++) s += coef[2 * k - 1] * Math.cos(k * t) + coef[2 * k] * Math.sin(k * t);
+  return s;
+}
+
+function formatFourier(coef, K) {
+  const parts = [`${Number(coef[0].toPrecision(4))}`];
+  for (let k = 1; k <= K; k++) {
+    const a = coef[2 * k - 1];
+    const b = coef[2 * k];
+    if (Math.abs(a) > 1e-10) parts.push(`${a >= 0 ? "+" : "-"} ${Math.abs(Number(a.toPrecision(4)))}·cos(${k}ωx)`);
+    if (Math.abs(b) > 1e-10) parts.push(`${b >= 0 ? "+" : "-"} ${Math.abs(Number(b.toPrecision(4)))}·sin(${k}ωx)`);
+  }
+  return `y ≈ ${parts.join(" ")}  (ω=2π/L, 截断 K=${K})`;
+}
+
+export function runImageFit({ x, y, degree, method, nHarmonic }) {
   const { xs, ys } = sortUnique(x, y);
   if (xs.length < 2) throw new Error("采样点不足，请先在图像上取点或自动采样");
 
@@ -234,9 +276,40 @@ export function runImageFit({ x, y, degree, method }) {
   let r2;
   let err;
 
-  if (method === "spline" && xs.length >= 3) {
+  if (method === "fourier") {
+    let K = Math.max(1, Math.min(Number(nHarmonic) || Number(degree) || 5, 8, Math.floor((xs.length - 1) / 2)));
+    let fc, L, x0, Kused = K;
+    for (let ktry = K; ktry >= 1; ktry--) {
+      try {
+        const res = fourierFit(xs, ys, ktry);
+        fc = res.coef; L = res.L; x0 = res.x0; Kused = res.K;
+        break;
+      } catch (e) {
+        if (ktry === 1) throw e;
+      }
+    }
+    K = Kused;
+    coef = fc;
+    denseY = denseX.map((xi) => fourierVal(fc, K, L, x0, xi));
+    equation = formatFourier(fc, K);
+    let s = 0, c = 0;
+    for (let i = 0; i < xs.length; i++) {
+      const e = ys[i] - fourierVal(fc, K, L, x0, xs[i]);
+      const v = e * e;
+      const t = s + v;
+      if (Math.abs(s) >= Math.abs(v)) c += (s - t) + v; else c += (v - t) + s;
+      s = t;
+    }
+    err = Math.sqrt((s + c) / xs.length);
+    let meanS = 0, meanC = 0;
+    for (const v of ys) { const t2 = meanS + v; if (Math.abs(meanS) >= Math.abs(v)) meanC += (meanS - t2) + v; else meanC += (v - t2) + meanS; meanS = t2; }
+    const mean = (meanS + meanC) / ys.length;
+    let ssRes = s + c, ssTot = 0, ssTotC = 0;
+    for (let i = 0; i < ys.length; i++) { const tv = ys[i] - mean; const tvt = tv * tv; const ttr = ssTot + tvt; if (Math.abs(ssTot) >= Math.abs(tvt)) ssTotC += (ssTot - ttr) + tvt; else ssTotC += (tvt - ttr) + ssTot; ssTot = ttr; }
+    ssTot += ssTotC;
+    r2 = ssTot < 1e-18 ? 1 : 1 - (s + c) / ssTot;
+  } else if (method === "spline" && xs.length >= 3) {
     denseY = cubicSpline(xs, ys, denseX);
-    // 用同阶多项式作可读近似表达式
     coef = polyfit(xs, ys, Math.min(deg, 5));
     equation = `样条拟合（多项式近似） y ≈ ${formatPoly(coef)}`;
     r2 = rSquared(xs, ys, coef);
@@ -257,7 +330,8 @@ export function runImageFit({ x, y, degree, method }) {
     coef,
     equation,
     degree: deg,
-    method: method === "spline" ? "spline" : "poly",
+    method: method === "fourier" ? "fourier" : method === "spline" ? "spline" : "poly",
+    nHarmonic: method === "fourier" ? (coef ? (coef.length - 1) / 2 : Number(nHarmonic) || 5) : undefined,
     r2,
     rmse: err,
   };

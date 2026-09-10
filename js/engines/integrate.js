@@ -112,6 +112,37 @@ export function romberg(f, a, b, maxLevel = 8, tol = 1e-12) {
 
 export function runIntegration({ expr, a, b, n, method, tol }) {
   const f = compileExpr(expr, ["x"]);
+
+  // 端点奇异检测：compileExpr 对非有限求值会抛错（如 1/sqrt(x) 在 x=0）
+  const faOK = (() => {
+    try {
+      f(a);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const fbOK = (() => {
+    try {
+      f(b);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  const dir = Math.sign(b - a) || 1;
+  const span = Math.abs(b - a) || 1;
+  const eps = Math.min(span * 1e-8, 1e-4);
+  let aEff = faOK ? a : a + dir * eps;
+  let bEff = fbOK ? b : b - dir * eps;
+  let singularNote = "";
+
+  if (!faOK || !fbOK) {
+    singularNote =
+      "被积函数在积分端点处非有限（疑似奇点或间断点），已向内偏移端点后计算。固定网格算法对端点奇异收敛缓慢，建议改用「自适应 Simpson」以获得更可靠结果；并请确认该积分在数学上收敛（可积）。";
+  }
+
   let value;
   let detail = {};
   let absErrEst = 0;
@@ -122,8 +153,8 @@ export function runIntegration({ expr, a, b, n, method, tol }) {
     case "trapezoid": {
       const n1 = Math.max(2, n);
       const n2 = n1 * 2;
-      const c = trapezoid(f, a, b, n1);
-      const fine = trapezoid(f, a, b, n2);
+      const c = trapezoid(f, aEff, bEff, n1);
+      const fine = trapezoid(f, aEff, bEff, n2);
       value = fine;
       absErrEst = richardsonError(c, fine, 2);
       errSource = "richardson";
@@ -131,14 +162,14 @@ export function runIntegration({ expr, a, b, n, method, tol }) {
       break;
     }
     case "romberg": {
-      detail = romberg(f, a, b, 8, tol ?? 1e-12);
+      detail = romberg(f, aEff, bEff, 8, tol ?? 1e-12);
       value = detail.value;
       absErrEst = detail.absErrEst;
       errSource = detail.errSource;
       break;
     }
     case "adaptive": {
-      const ad = adaptiveSimpson(f, a, b, tol ?? 1e-8, 22);
+      const ad = adaptiveSimpson(f, aEff, bEff, tol ?? 1e-8, 22);
       value = ad.value;
       absErrEst = ad.absErrEst;
       errSource = ad.errSource;
@@ -151,8 +182,8 @@ export function runIntegration({ expr, a, b, n, method, tol }) {
       let n1 = Math.max(2, n);
       if (n1 % 2 === 1) n1 += 1;
       const n2 = n1 * 2;
-      const c = simpson(f, a, b, n1);
-      const fine = simpson(f, a, b, n2);
+      const c = simpson(f, aEff, bEff, n1);
+      const fine = simpson(f, aEff, bEff, n2);
       value = fine;
       absErrEst = richardsonError(c, fine, 4);
       errSource = "richardson";
@@ -161,8 +192,19 @@ export function runIntegration({ expr, a, b, n, method, tol }) {
     }
   }
 
-  const xs = linspace(a, b, 400);
-  const ys = xs.map((x) => f(x));
+  if (!Number.isFinite(value) || !Number.isFinite(absErrEst)) {
+    singularNote =
+      "数值结果包含非有限值（NaN / Infinity）：被积函数在区间内可能存在奇点或剧烈变化，请检查表达式与积分区间。";
+  }
+
+  const xs = linspace(aEff, bEff, 400);
+  const ys = xs.map((x) => {
+    try {
+      return f(x);
+    } catch {
+      return NaN;
+    }
+  });
 
   return {
     value,
@@ -170,9 +212,12 @@ export function runIntegration({ expr, a, b, n, method, tol }) {
     ys,
     a,
     b,
+    aEff,
+    bEff,
     absErrEst,
     errSource,
     nEvals,
     detail,
+    ...(singularNote ? { singularNote } : {}),
   };
 }

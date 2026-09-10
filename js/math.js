@@ -167,6 +167,20 @@ class Parser {
     this.tokens = tokens;
     this.pos = 0;
     this.varNames = new Set(varNames);
+    this.depth = 0;
+    this.maxDepth = 200;
+  }
+
+  /** 递归进入嵌套层，超限即中止，防止深嵌套表达式耗尽调用栈 */
+  enter() {
+    this.depth++;
+    if (this.depth > this.maxDepth) {
+      throw new Error(`表达式嵌套过深（超过 ${this.maxDepth} 层），请简化表达式`);
+    }
+  }
+
+  leave() {
+    this.depth--;
   }
 
   peek() {
@@ -223,7 +237,9 @@ class Parser {
     const base = this.parseUnary();
     if (this.peek().type === "op" && this.peek().value === "**") {
       this.advance();
+      this.enter();
       const exp = this.parseFactor(); // 右结合：递归调用 parseFactor
+      this.leave();
       return (ctx) => Math.pow(base(ctx), exp(ctx));
     }
     return base;
@@ -233,7 +249,9 @@ class Parser {
   parseUnary() {
     if (this.peek().type === "op" && (this.peek().value === "+" || this.peek().value === "-")) {
       const op = this.advance().value;
+      this.enter();
       const operand = this.parseUnary();
+      this.leave();
       if (op === "-") {
         return (ctx) => -operand(ctx);
       }
@@ -258,7 +276,9 @@ class Parser {
 
     if (t.type === "lparen") {
       this.advance();
+      this.enter();
       const inner = this.parseExpr();
+      this.leave();
       this.expect("rparen");
       return inner;
     }

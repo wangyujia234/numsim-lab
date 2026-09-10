@@ -84,6 +84,10 @@ const ALGO_META = {
       name: "图像数字化 + 三次样条",
       reason: "采样点足够时，样条能更光滑地贴合曲线形态。",
     },
+    fourier: {
+      name: "图像数字化 + 傅里叶级数截断",
+      reason: "曲线呈周期或拟周期形态时，用截断傅里叶级数以有限谐波逼近。",
+    },
   },
   transform: {
     fft: {
@@ -157,23 +161,73 @@ const ALGO_META = {
   },
 };
 
+const TYPE_PRIORITY = ["pde", "imagefit", "circuit", "control", "transform", "interpolate", "integrate", "ode"];
+
+function testTypePattern(type, lowerText) {
+  const t = lowerText;
+  if (type === "imagefit") return /图像|图片|拍照|截图|拟合曲线|digitiz|curve fit|从图/.test(t);
+  if (type === "pde") return /热方程|热传导|扩散方程|pde|偏微分|一维热/.test(t);
+  if (type === "circuit") return /电路|rlc|电容|电感|谐振|阻抗|频响|电枢回路/.test(t);
+  if (type === "control")
+    return (
+      /pid|bode|传递函数|二阶系统|阻尼比|相位裕度|直流电机|控制系统|根轨迹|伺服|极点配置|状态反馈|z\s*变换|离散.*传递|jury|传感器标定|标定曲线/.test(
+        t
+      ) || (/阶跃响应/.test(t) && !/电路|rlc|电容|电感/.test(t))
+    );
+  if (type === "transform") return /傅里叶|fft|拉普拉斯|laplace|频谱|积分变换|fourier|三角多项式|谐波/.test(t);
+  if (type === "interpolate") return /插值|样条|lagrange|newton|spline|拟合点/.test(t);
+  if (type === "integrate") return /积分|integral|∫|quad|simpson|trapez/.test(t) && !/变换/.test(t);
+  if (type === "ode") return /微分|ode|微分方程|初值|runge|y'|dy\/dt/.test(t);
+  return false;
+}
+
+export function detectAllTypes(text) {
+  const t = String(text || "").toLowerCase();
+  if (!t.trim()) return [];
+  const hits = [];
+  for (const type of TYPE_PRIORITY) {
+    if (testTypePattern(type, t)) hits.push(type);
+  }
+  return hits;
+}
+
+const CAPABILITY_LABEL = {
+  imagefit: "多项式最小二乘 / 三次样条 / 傅里叶级数截断",
+  transform: "FFT / 数值傅里叶 / 数值拉普拉斯",
+  interpolate: "分段线性 / Lagrange / Newton / 三次样条",
+  integrate: "梯形 / Simpson / Romberg / 自适应 Simpson",
+  ode: "Euler / Heun / RK4 / RK45",
+  circuit: "串联 RLC / 并联 RC / 串联 RL / 频响",
+  control: "二阶阶跃 / PID / Bode / 电机 / 根轨迹 / Z 变换 / 极点配置 / 传感器标定",
+  pde: "FTCS / Crank–Nicolson",
+};
+
+const INTENT_LABEL = {
+  imagefit: "图像拟合",
+  transform: "傅里叶变换 / 频谱分析",
+  interpolate: "插值",
+  integrate: "数值积分",
+  ode: "常微分方程",
+  circuit: "电路分析",
+  control: "控制系统仿真",
+  pde: "偏微分方程",
+};
+
+export function buildIntentWarnings(nl, chosenType) {
+  const all = detectAllTypes(nl);
+  if (all.length <= 1) return [];
+  const extras = all.filter((t) => t !== chosenType);
+  if (!extras.length) return [];
+  return extras.map((t) => {
+    const need = INTENT_LABEL[t] || t;
+    const cap = CAPABILITY_LABEL[chosenType] || "当前模块能力";
+    return `⚠ 检测到需求：${need}\n当前「${labelType(chosenType)}」模块仅支持：${cap}\n该需求未被执行，结果不包含「${need}」。`;
+  });
+}
+
 export function detectTypeFromText(text, fallback) {
-  const t = text.toLowerCase();
-  if (/图像|图片|拍照|截图|拟合曲线|digitiz|curve fit|从图/.test(t)) return "imagefit";
-  if (/热方程|热传导|扩散方程|pde|偏微分|一维热/.test(t)) return "pde";
-  // 电路必须优先于控制：描述里常见「电路阶跃响应 / 欠阻尼」会被控制关键词误伤
-  if (/电路|rlc|电容|电感|谐振|阻抗|频响|电枢回路/.test(t)) return "circuit";
-  if (
-    /pid|bode|传递函数|二阶系统|阻尼比|相位裕度|直流电机|控制系统|根轨迹|伺服|极点配置|状态反馈|z\s*变换|离散.*传递|jury|传感器标定|标定曲线/.test(
-      t
-    ) ||
-    (/阶跃响应/.test(t) && !/电路|rlc|电容|电感/.test(t))
-  )
-    return "control";
-  if (/傅里叶|fft|拉普拉斯|laplace|频谱|积分变换|fourier/.test(t)) return "transform";
-  if (/插值|样条|lagrange|newton|spline|拟合点/.test(t)) return "interpolate";
-  if (/积分|integral|∫|quad|simpson|trapez/.test(t) && !/变换/.test(t)) return "integrate";
-  if (/微分|ode|微分方程|初值|runge|y'|dy\/dt/.test(t)) return "ode";
+  const hits = detectAllTypes(text);
+  if (hits.length) return hits[0];
   return fallback;
 }
 
@@ -219,8 +273,10 @@ function pickPde(nl, schemeHint) {
 
 function pickImageFit(nl, methodHint) {
   const t = nl.toLowerCase();
+  if (/傅里叶|fourier|fft|谐波|三角多项式|周期/.test(t)) return "fourier";
   if (/样条|spline|光滑/.test(t)) return "spline";
   if (/多项式|poly|最小二乘|次数/.test(t)) return "poly";
+  if (methodHint === "fourier") return "fourier";
   return methodHint === "spline" ? "spline" : "poly";
 }
 

@@ -79,6 +79,38 @@ export function suggestFixes(message, type) {
     });
   }
 
+  if (/FTCS.*≤ 0\.5|r=/.test(msg)) {
+    fixes.push({
+      id: "pde-cn",
+      label: "切换到 Crank–Nicolson（无条件稳定）",
+      apply() {
+        const el = document.getElementById("pde-scheme");
+        if (el) el.value = "cn";
+      },
+    });
+  }
+  if (/谐波阶数|拟合次数.*1~8/.test(msg)) {
+    fixes.push({
+      id: "img-degree",
+      label: "将次数/谐波设为 3",
+      apply() {
+        const el = document.getElementById("img-degree");
+        if (el) el.value = "3";
+      },
+    });
+  }
+  if (/ζ.*正数|ωn.*正数/.test(msg)) {
+    fixes.push({
+      id: "ctl-zeta",
+      label: "恢复 ζ=0.3, ωn=2",
+      apply() {
+        const z = document.getElementById("ctl-zeta");
+        const w = document.getElementById("ctl-wn");
+        if (z) z.value = "0.3";
+        if (w) w.value = "2";
+      },
+    });
+  }
   if (/至少需要 2 个采样点|x 与 y 长度/.test(msg)) {
     fixes.push({
       id: "interp-demo",

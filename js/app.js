@@ -1,4 +1,4 @@
-import { decide } from "./agent.js";
+import { decide, buildIntentWarnings, detectTypeFromText } from "./agent.js";
 import { autofillFromText } from "./autofill.js";
 import { generateCode } from "./codegen.js";
 import { runInterpolation } from "./engines/interpolate.js";
@@ -587,7 +587,7 @@ function clearWorkspaceDraft() {
   syncDraftBanner(null);
 }
 
-async function restoreWorkspaceDraft(draft = loadWorkspaceDraft()) {
+async function restoreWorkspaceDraft(draft = loadWorkspaceDraft(), { openView = true } = {}) {
   if (!draft) return false;
   const assignment = draft.assignmentId ? getAssignment(draft.assignmentId) : null;
 
@@ -631,7 +631,7 @@ async function restoreWorkspaceDraft(draft = loadWorkspaceDraft()) {
 
   const imgNotes = await restoreImageFitSnapshot(draft.imagefit);
 
-  setView("work", { syncHash: false });
+  if (openView) setView("work", { syncHash: false });
   scheduleWorkspaceDraftSave();
   syncDraftBanner(draft);
   logSteps(["已恢复工作草稿", "可直接继续编辑参数并重新运行", ...imgNotes]);
@@ -770,6 +770,19 @@ function applyExampleFilter(filter) {
 function openModule(type) {
   setType(type);
   setView("work");
+  if (type === "control") syncControlFields();
+  if (type === "imagefit") {
+    logSteps(["已打开图像拟合模块", "请先加载演示图或上传图片，再点击自动采样/仿真"]);
+  } else {
+    const filled = applyAutofill({ forceGenerate: true, allowGenerate: true, fixedType: type });
+    if (filled) {
+      logSteps([
+        `已打开模块：${TYPE_LABELS[type] || type}`,
+        ...filled.notes.map((n) => `自动数据：${n}`),
+        "参数已更新，可直接点击仿真",
+      ]);
+    }
+  }
   scheduleWorkspaceDraftSave();
 }
 
@@ -1051,6 +1064,22 @@ function logSteps(steps, error) {
   box.innerHTML = steps.map((s, i) => `<p class="step"><strong>${i + 1}.</strong> ${escapeHtml(s)}</p>`).join("");
 }
 
+/** P0-1: 多意图未被当前模块覆盖时，在结果区顶部给出醒目警示条 */
+function showIntentWarning(warnings) {
+  const box = $("intent-warning");
+  if (!box) return;
+  box.innerHTML = warnings.map((w) => `<div class="intent-warning-item">${escapeHtml(w).replace(/\n/g, "<br/>")}</div>`).join("");
+  box.hidden = false;
+}
+
+function hideIntentWarning() {
+  const box = $("intent-warning");
+  if (box) {
+    box.hidden = true;
+    box.innerHTML = "";
+  }
+}
+
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, "&amp;")
@@ -1176,6 +1205,11 @@ function readPayload(type) {
 }
 
 function plotResult(type, result) {
+  if (typeof Plotly === "undefined") {
+    const box = $("plot");
+    if (box) box.innerHTML = '<p class="muted">图表库加载中，请稍后重试…</p>';
+    return;
+  }
   const pc = plotColors();
   const layoutBase = {
     paper_bgcolor: pc.paper,
@@ -1580,6 +1614,41 @@ function renderMetrics(metrics) {
     .join("");
 }
 
+/**
+ * 统一有限性守卫：递归扫描仿真结果，发现 NaN/Infinity 即记录警示。
+ * 覆盖引擎静默传播非有限值的路径（如固定步长 ODE 遇到刚性/奇点）。
+ */
+function guardNumerics(result) {
+  if (!result || typeof result !== "object") return;
+  let seen = 0;
+  let sample = "";
+  const limit = 40000;
+
+  const walk = (node, path) => {
+    if (seen > limit || sample) return;
+    if (typeof node === "number") {
+      seen++;
+      if (!Number.isFinite(node)) {
+        sample = `${path}=${node}`;
+      }
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    for (const k of Object.keys(node)) {
+      if (seen > limit || sample) return;
+      const v = node[k];
+      if (typeof v === "function") continue;
+      walk(v, path ? `${path}.${k}` : k);
+    }
+  };
+
+  walk(result, "");
+
+  if (sample) {
+    result.numericsWarning = `检测到非有限数值（${sample} …）：可能存在奇点、刚性方程或数值溢出。建议换用更稳健的方法（如 rk45 自适应 / Crank–Nicolson 隐式格式），或检查参数量级。`;
+  }
+}
+
 function conclusionText(type, decision, result) {
   if (type === "integrate") {
     if (result.absErrExact != null) {
@@ -1590,8 +1659,8 @@ function conclusionText(type, decision, result) {
         ? "自适应局部误差估计"
         : result.errSource === "richardson"
           ? "Richardson 外推估计"
-          : "误差估计";
-    return `定积分近似值为 ${formatNum(result.value, 8)}，${src}约 ${formatNum(result.absErrEst, 4)}。`;
+          : "数值估计";
+    return `定积分近似值为 ${formatNum(result.value, 8)}。无解析对照，${src}约 ${formatNum(result.absErrEst, 4)}。`;
   }
   if (type === "ode") {
     if (result.rmseExact != null) {
@@ -1602,8 +1671,8 @@ function conclusionText(type, decision, result) {
         ? "自适应局部误差估计"
         : result.errSource === "richardson"
           ? "Richardson 外推估计"
-          : "误差估计";
-    return `在 t=tf 处 y ≈ ${formatNum(result.yEnd, 8)}。${src}约 ${formatNum(result.errEst, 4)}。`;
+          : "数值估计";
+    return `在 t=tf 处 y ≈ ${formatNum(result.yEnd, 8)}。无解析对照，${src}约 ${formatNum(result.errEst, 4)}。`;
   }
   if (type === "interpolate") {
     const warn = result.rungeWarning ? ` ${result.rungeWarning}` : "";
@@ -1777,10 +1846,15 @@ function enrichDecisionNames(decision2, payload) {
     decision2.algorithmName = names[decision2.algorithm] || decision2.algorithmName;
   }
   if (decision2.type === "imagefit") {
-    decision2.algorithm = payload.method === "spline" ? "spline" : decision2.algorithm;
-    if (payload.method === "poly") decision2.algorithm = "poly";
+    if (payload.method === "fourier") decision2.algorithm = "fourier";
+    else if (payload.method === "spline") decision2.algorithm = "spline";
+    else if (payload.method === "poly") decision2.algorithm = "poly";
     decision2.algorithmName =
-      decision2.algorithm === "spline" ? "图像数字化 + 三次样条" : "图像数字化 + 多项式最小二乘";
+      decision2.algorithm === "fourier"
+        ? "图像数字化 + 傅里叶级数截断"
+        : decision2.algorithm === "spline"
+          ? "图像数字化 + 三次样条"
+          : "图像数字化 + 多项式最小二乘";
   }
   if (decision2.type === "transform") {
     decision2.algorithm = payload.method || decision2.algorithm;
@@ -2266,6 +2340,13 @@ async function runPipeline(opts = {}) {
       decision2 = enrichDecisionNames(decision2, payload);
     }
 
+    // P0-1: 多意图检测 — 禁止静默丢弃（非作业模式才提示）
+    const intentWarnings = state.mode !== "homework" ? buildIntentWarnings(nl, decision2.type) : [];
+    if (intentWarnings.length) {
+      decision2.intentWarnings = intentWarnings;
+      decision2.steps = [...decision2.steps, ...intentWarnings.map((w) => w.replace(/\n/g, " | "))];
+    }
+
     const wantCompare =
       state.mode !== "homework" &&
       !!$("compare-algs")?.checked &&
@@ -2279,6 +2360,7 @@ async function runPipeline(opts = {}) {
       ...(sweepCfg ? [`参数扫描：${sweepCfg.label} × ${sweepCfg.values.length}`] : []),
     ];
     logSteps([...headSteps, "生成 Python / MATLAB 代码…", "运行浏览器内数值引擎…", "绘制曲线并汇总报告…"]);
+    if (intentWarnings.length) showIntentWarning(intentWarnings);
     $("algo-badge").textContent = sweepCfg
       ? `${decision2.algorithmName} · 扫描`
       : wantCompare
@@ -2363,6 +2445,7 @@ async function runPipeline(opts = {}) {
     if (!wantCompare && !sweepCfg) {
       sim = attachAnalytical(decision2.type, payload, sim);
     }
+    guardNumerics(sim);
 
     const codes = generateCode(decision2, payload, sim);
     $("python-code").textContent = codes.python;
@@ -2399,6 +2482,8 @@ async function runPipeline(opts = {}) {
       conclusionText(decision2.type, decision2, sim),
       sim.analyticalNote || "",
       sim.stabilityNote || "",
+      sim.singularNote || "",
+      sim.numericsWarning || "",
       selfCheck ? `自检${selfCheck.pass ? "通过" : "未通过"}：${selfCheck.message}` : "",
       state.mode === "homework" ? `验真印章 ${stamp.seal} · ${ENGINE_VERSION}` : "",
     ]
@@ -2503,6 +2588,7 @@ function clearResults({ silent = true, analyzing = false } = {}) {
   state.lastStamp = null;
   renderSelfCheck(null);
   hideErrorFixes();
+  hideIntentWarning();
   syncTeacherVerifyUi();
   const verifyResult = $("teacher-verify-result");
   if (verifyResult) {
@@ -2574,7 +2660,28 @@ function bindUI() {
 
   const moduleSelect = $("module-select");
   if (moduleSelect) {
-    moduleSelect.addEventListener("change", () => setType(moduleSelect.value));
+    moduleSelect.addEventListener("change", () => {
+      const nextType = moduleSelect.value;
+      state.activeExample = null;
+      setType(nextType);
+      if (nextType === "control") syncControlFields();
+      if (nextType === "imagefit") {
+        logSteps([`已切换到模块：${TYPE_LABELS[nextType] || nextType}`, "请先加载图片或使用演示图，再点击仿真"]);
+        scheduleWorkspaceDraftSave();
+        return;
+      }
+      const filled = applyAutofill({ forceGenerate: true, allowGenerate: true, fixedType: nextType });
+      if (filled) {
+        logSteps([
+          `已切换到模块：${TYPE_LABELS[nextType] || nextType}`,
+          ...filled.notes.map((n) => `自动数据：${n}`),
+          "参数已更新，可直接点击仿真",
+        ]);
+      } else {
+        logSteps([`已切换到模块：${TYPE_LABELS[nextType] || nextType}`, "请填写问题描述或手动调整参数后再运行"]);
+      }
+      scheduleWorkspaceDraftSave();
+    });
   }
 
   const btnGotoReport = $("btn-goto-report");
@@ -2956,12 +3063,9 @@ function bindUI() {
   } else {
     const draft = loadWorkspaceDraft();
     if (draft) {
-      restoreWorkspaceDraft(draft).catch((e) => {
-        setView(VIEWS.includes(initial) ? initial : "home", { syncHash: false });
-        setType(state.type);
-        syncDraftBanner(draft);
-        logSteps([], e.message || String(e));
-      });
+      setView(VIEWS.includes(initial) ? initial : "home", { syncHash: false });
+      syncDraftBanner(draft);
+      logSteps(["检测到本地工作草稿", "点击「恢复草稿」可继续上次编辑"]);
     } else {
       setView(VIEWS.includes(initial) ? initial : "home", { syncHash: false });
       setType(state.type);

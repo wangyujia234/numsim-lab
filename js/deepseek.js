@@ -56,7 +56,7 @@ const ALLOWED = {
 
     circuit: ["series_rlc", "parallel_rc", "series_rl", "ac_rlc"],
 
-    imagefit: ["poly", "spline"],
+    imagefit: ["poly", "spline", "fourier"],
 
     transform: ["fft", "fourier", "laplace"],
 

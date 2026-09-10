@@ -4,6 +4,7 @@ export function buildReport(decision, payload, result, codes, extras = {}) {
   const time = new Date().toLocaleString("zh-CN");
   const problem = String(extras.problem || decision.nl || "").trim();
   const plotDataUrl = extras.plotDataUrl || "";
+  const intentWarnings = Array.isArray(decision.intentWarnings) ? decision.intentWarnings : [];
   const lines = [];
   lines.push(`# NumSim Lab 仿真报告`);
   lines.push(``);
@@ -12,6 +13,11 @@ export function buildReport(decision, payload, result, codes, extras = {}) {
   lines.push(`- 选定算法：${decision.algorithmName}`);
   lines.push(`- 选择依据：${decision.reason}`);
   if (decision.source) lines.push(`- 分析来源：${decision.source}`);
+  if (intentWarnings.length) {
+    lines.push(``);
+    lines.push(`## 意图提醒（未执行需求）`);
+    for (const w of intentWarnings) lines.push(`> ${w.replace(/\n/g, " / ")}`);
+  }
   lines.push(``);
   if (problem) {
     lines.push(`## 题目复述`);
@@ -80,6 +86,9 @@ function renderHtml(decision, payload, result, time, problem, plotDataUrl, selfC
     .map((m) => `<li><strong>${escapeHtml(m.label)}</strong>：${escapeHtml(String(m.value))}</li>`)
     .join("");
   const steps = decision.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("");
+  const warningBlock = (decision.intentWarnings || []).length
+    ? `<div class="intent-banner">${decision.intentWarnings.map((w) => `<p>${escapeHtml(w).replace(/\n/g, "<br/>")}</p>`).join("")}</div>`
+    : "";
   const problemBlock = problem
     ? `<h3>题目复述</h3><p class="report-problem">${escapeHtml(problem)}</p>`
     : "";
@@ -97,6 +106,7 @@ function renderHtml(decision, payload, result, time, problem, plotDataUrl, selfC
     ? `<h3>曲线图</h3><img class="report-plot" src="${plotDataUrl}" alt="仿真曲线" />`
     : "";
   return `
+    ${warningBlock}
     <h3>概要</h3>
     <ul>
       <li>时间：${escapeHtml(time)}</li>

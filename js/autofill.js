@@ -468,11 +468,12 @@ function parseCircuit(text) {
 /**
  * @param {string} nl
  * @param {string} typeHint
- * @param {{ forceGenerate?: boolean, allowGenerate?: boolean }} opts
+ * @param {{ forceGenerate?: boolean, allowGenerate?: boolean, fixedType?: string }} opts
+ *   fixedType：强制锁定补参目标类型（用于“当前模块”手动切换，避免 NL 描述反推覆盖用户选择）
  */
 export function autofillFromText(nl, typeHint = "interpolate", opts = {}) {
   const text = (nl || "").trim();
-  const type = text ? detectTypeFromText(text, typeHint) : typeHint;
+  const type = opts.fixedType || (text ? detectTypeFromText(text, typeHint) : typeHint);
   const notes = [];
   const allowGenerate = opts.allowGenerate !== false;
 

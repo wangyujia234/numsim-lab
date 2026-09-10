@@ -3,13 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="NumSim Lab · 本地可复现数值计算与作业验真" />
+  <meta name="description" content="NumSim Lab · 本地可复现数值计算与作业验真 — 演示试算、作业验真印章、八大数值模块，计算全在浏览器本地完成" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>NumSim Lab · 本地计算 · 作业验真</title>
+  <link rel="canonical" href="https://numsim-lab.netlify.app/" />
+  <meta property="og:title" content="NumSim Lab · 本地计算 · 作业验真" />
+  <meta property="og:description" content="本地数值引擎 + 作业验真印章：插值/积分/ODE/电路/图像拟合/变换/控制/PDE，SHA-256 可复核。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://numsim-lab.netlify.app/" />
+  <meta property="og:image" content="https://numsim-lab.netlify.app/favicon.svg" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="NumSim Lab · 本地计算 · 作业验真" />
+  <meta name="twitter:description" content="本地数值引擎 + 作业验真印章，八大模块可复现。" />
+  <meta name="twitter:image" content="https://numsim-lab.netlify.app/favicon.svg" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="apple-touch-icon" href="favicon.svg" />
-  <script src="js/vendor/plotly.min.js"></script>
   <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/vendor/plotly.min.js" defer></script>
 </head>
 <body>
   <div class="grain" aria-hidden="true"></div>
@@ -81,44 +92,92 @@
       <p class="section-lead">演示模式可自由试算；作业模式走锁参、自检与验真印章。</p>
       <div class="module-grid" id="module-grid">
         <button type="button" class="module-card" data-open-type="interpolate">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c2.5-3 3.5-1.5 5-2.5s2.5-4.5 4-4.5 2.5 2.5 4 2.5 3-4 5-5.5"/><circle cx="3" cy="17" r="1.7"/><circle cx="12" cy="10" r="1.7"/><circle cx="21" cy="7" r="1.7"/></svg>
+          </span>
           <span class="module-kicker">Interpolate</span>
           <strong>插值</strong>
-          <span>样条 / Lagrange / Newton</span>
+          <span class="module-desc">样条 / Lagrange / Newton</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="integrate">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c1.6-7 3.4-9.5 5-9.5s3.4 5.5 5 5.5 3.4-7 5-10"/><path d="M4 20h16"/></svg>
+          </span>
           <span class="module-kicker">Integrate</span>
           <strong>积分</strong>
-          <span>Simpson / 自适应 / Romberg</span>
+          <span class="module-desc">Simpson / 自适应 / Romberg</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="ode">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10c1.5 5 3 5 4.5 0s3-5 4.5 0 3 5 4.5 0 2.5-4 4.5-1"/></svg>
+          </span>
           <span class="module-kicker">ODE</span>
           <strong>微分方程</strong>
-          <span>RK45 / RK4 / Euler</span>
+          <span class="module-desc">RK45 / RK4 / Euler</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="circuit">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 12h2l1.5-3 1.5 5 1.5-4 1.5 3 2.5-2h2"/></svg>
+          </span>
           <span class="module-kicker">Circuit</span>
           <strong>电路计算</strong>
-          <span>RLC 阶跃与频响</span>
+          <span class="module-desc">RLC 阶跃与频响</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="imagefit">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M5.5 17l3.5-4 3 3 3-4.5 3.5 5.5"/><circle cx="8" cy="9.5" r="1.4"/></svg>
+          </span>
           <span class="module-kicker">Image</span>
           <strong>图像拟合</strong>
-          <span>曲线数字化 + 拟合</span>
+          <span class="module-desc">曲线数字化 + 拟合</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="transform">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M7.5 19V7M11 19v-5M14.5 19V8M18 19v-8M21 19v-4"/><path d="M4 19h17"/></svg>
+          </span>
           <span class="module-kicker">Transform</span>
           <strong>积分变换</strong>
-          <span>FFT / 傅里叶 / 拉普拉斯</span>
+          <span class="module-desc">FFT / 傅里叶 / 拉普拉斯</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="control">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 14h3v-4h4v-2h5"/></svg>
+          </span>
           <span class="module-kicker">Control</span>
           <strong>控制系统</strong>
-          <span>PID / Bode / 根轨迹</span>
+          <span class="module-desc">PID / Bode / 根轨迹</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
         <button type="button" class="module-card" data-open-type="pde">
+          <span class="module-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18M12 4v16"/><circle cx="12" cy="12" r="2.6"/></svg>
+          </span>
           <span class="module-kicker">PDE</span>
           <strong>偏微分方程</strong>
-          <span>一维热传导 FTCS</span>
+          <span class="module-desc">一维热传导 FTCS</span>
+          <span class="module-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
         </button>
       </div>
     </div>
@@ -175,7 +234,7 @@
           <summary>DeepSeek 智能分析（可选）</summary>
           <div class="ai-panel-body">
             <label class="check-row">
-              <input type="checkbox" id="ai-enabled" />
+              <input type="checkbox" id="ai-enabled" aria-label="启用 DeepSeek" />
               <span>启用 DeepSeek 接管分析步骤</span>
             </label>
             <label class="check-row">
@@ -184,14 +243,14 @@
             </label>
             <label class="field">
               <span>模型</span>
-              <select id="ai-model">
+              <select id="ai-model" aria-label="模型">
                 <option value="deepseek-chat">deepseek-chat（更快）</option>
                 <option value="deepseek-reasoner">deepseek-reasoner（更强推理）</option>
               </select>
             </label>
             <label class="field">
               <span>API Key（仅保存在本机浏览器）</span>
-              <input id="ai-apikey" type="password" autocomplete="off" placeholder="sk-..." />
+              <input id="ai-apikey" type="password" autocomplete="off" placeholder="sk-..." / aria-label="API Key（仅保存在本机浏览器）">
             </label>
             <p class="hint-line">优先使用 Netlify 代理（前端可不放 Key）。失败时若有 Key 会自动直连；DeepSeek 失败则降级本地 Agent。计算始终在浏览器本地完成。</p>
             <button type="button" class="btn btn-ghost btn-sm" id="btn-ai-save">保存 AI 设置</button>
@@ -213,12 +272,12 @@
         </label>
 
         <label class="field">
-          <span>问题描述</span>
-          <textarea id="nl-input" rows="3" placeholder="例如：二阶系统阶跃，ζ=0.3，ωn=2&#10;或：PID 控制一阶对象&#10;或：一维热方程 α=0.1"></textarea>
+              <span>问题描述</span>
+              <textarea id="nl-input" rows="3" placeholder="例如：二阶系统阶跃，ζ=0.3，ωn=2&#10;或：PID 控制一阶对象&#10;或：一维热方程 α=0.1" aria-label="问题描述"></textarea>
         </label>
 
         <label class="check-row compare-row" id="compare-row">
-          <input type="checkbox" id="compare-algs" />
+          <input type="checkbox" id="compare-algs" aria-label="多算法对比" />
           <span>多算法对比（插值 / 积分 / ODE / 变换）</span>
         </label>
 
@@ -226,25 +285,25 @@
           <summary>参数扫描（灵敏度）</summary>
           <div class="sweep-body">
             <label class="check-row">
-              <input type="checkbox" id="sweep-enabled" />
+              <input type="checkbox" id="sweep-enabled" aria-label="启用参数扫描" />
               <span>启用参数扫描（多曲线叠加）</span>
             </label>
             <label class="field">
               <span>扫描参数</span>
-              <select id="sweep-param"></select>
+              <select id="sweep-param" aria-label="扫描参数"></select>
             </label>
             <div class="field-row">
               <label class="field">
-                <span>最小</span>
-                <input id="sweep-min" type="text" value="0.1" />
+              <span>最小</span>
+              <input id="sweep-min" type="text" value="0.1" / aria-label="最小">
               </label>
               <label class="field">
-                <span>最大</span>
-                <input id="sweep-max" type="text" value="1.2" />
+              <span>最大</span>
+              <input id="sweep-max" type="text" value="1.2" / aria-label="最大">
               </label>
               <label class="field">
-                <span>点数</span>
-                <input id="sweep-steps" type="text" value="5" />
+              <span>点数</span>
+              <input id="sweep-steps" type="text" value="5" / aria-label="点数">
               </label>
             </div>
             <p class="hint-line">适用于二阶 ζ/ωn、PID Kp、热方程 α、ODE y0 等。</p>
@@ -261,69 +320,69 @@
 
         <div id="form-interpolate" class="type-form active">
           <label class="field">
-            <span>采样点 x（逗号分隔）</span>
-            <input id="interp-x" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 1, 2, 3, 4, 5" />
+              <span>采样点 x（逗号分隔）</span>
+              <input id="interp-x" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 1, 2, 3, 4, 5" / aria-label="采样点 x（逗号分隔）">
           </label>
           <label class="field">
-            <span>采样点 y（逗号分隔）</span>
-            <input id="interp-y" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 0.8, 0.9, 0.1, -0.8, -1" />
+              <span>采样点 y（逗号分隔）</span>
+              <input id="interp-y" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]+" title="仅允许数字、逗号、小数点、负号" value="0, 0.8, 0.9, 0.1, -0.8, -1" / aria-label="采样点 y（逗号分隔）">
           </label>
           <label class="field">
-            <span>查询点（可选，逗号分隔）</span>
-            <input id="interp-query" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]*" title="仅允许数字、逗号、小数点、负号" value="0.5, 2.5, 4.2" />
+              <span>查询点（可选，逗号分隔）</span>
+              <input id="interp-query" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" pattern="[\d\s,.\-eE]*" title="仅允许数字、逗号、小数点、负号" value="0.5, 2.5, 4.2" / aria-label="查询点（可选，逗号分隔）">
           </label>
         </div>
 
         <div id="form-integrate" class="type-form">
           <label class="field">
-            <span>被积函数 f(x)</span>
-            <input id="integ-f" type="text" value="sin(x)*exp(-0.1*x)" />
+              <span>被积函数 f(x)</span>
+              <input id="integ-f" type="text" value="sin(x)*exp(-0.1*x)" / aria-label="被积函数 f(x)">
           </label>
           <div class="field-row">
             <label class="field">
               <span>下限 a</span>
-              <input id="integ-a" type="text" value="0" />
+              <input id="integ-a" type="text" value="0" / aria-label="下限 a">
             </label>
             <label class="field">
               <span>上限 b</span>
-              <input id="integ-b" type="text" value="10" />
+              <input id="integ-b" type="text" value="10" / aria-label="上限 b">
             </label>
             <label class="field">
               <span>子区间数 n</span>
-              <input id="integ-n" type="text" value="200" />
+              <input id="integ-n" type="text" value="200" / aria-label="子区间数 n">
             </label>
           </div>
         </div>
 
         <div id="form-ode" class="type-form">
           <label class="field">
-            <span>一阶 ODE：y' = f(t, y)</span>
-            <input id="ode-f" type="text" value="-0.5*y + sin(t)" />
+              <span>一阶 ODE：y' = f(t, y)</span>
+              <input id="ode-f" type="text" value="-0.5*y + sin(t)" / aria-label="一阶 ODE：y' = f(t, y)">
           </label>
           <div class="field-row">
             <label class="field">
               <span>初值 y(t0)</span>
-              <input id="ode-y0" type="text" value="1" />
+              <input id="ode-y0" type="text" value="1" / aria-label="初值 y(t0)">
             </label>
             <label class="field">
               <span>t0</span>
-              <input id="ode-t0" type="text" value="0" />
+              <input id="ode-t0" type="text" value="0" / aria-label="t0">
             </label>
             <label class="field">
               <span>tf</span>
-              <input id="ode-tf" type="text" value="20" />
+              <input id="ode-tf" type="text" value="20" / aria-label="tf">
             </label>
             <label class="field">
               <span>步数</span>
-              <input id="ode-n" type="text" value="400" />
+              <input id="ode-n" type="text" value="400" / aria-label="步数">
             </label>
           </div>
         </div>
 
         <div id="form-circuit" class="type-form">
           <label class="field">
-            <span>电路拓扑</span>
-            <select id="ckt-topo">
+              <span>电路拓扑</span>
+              <select id="ckt-topo" aria-label="电路拓扑">
               <option value="series_rlc">串联 RLC 阶跃响应</option>
               <option value="parallel_rc">并联 RC 放电</option>
               <option value="series_rl">串联 RL 电流响应</option>
@@ -333,19 +392,19 @@
           <div class="field-row">
             <label class="field">
               <span>R (Ω)</span>
-              <input id="ckt-r" type="text" value="10" />
+              <input id="ckt-r" type="text" value="10" / aria-label="R (Ω)">
             </label>
             <label class="field">
               <span>L (H)</span>
-              <input id="ckt-l" type="text" value="0.5" />
+              <input id="ckt-l" type="text" value="0.5" / aria-label="L (H)">
             </label>
             <label class="field">
               <span>C (F)</span>
-              <input id="ckt-c" type="text" value="0.001" />
+              <input id="ckt-c" type="text" value="0.001" / aria-label="C (F)">
             </label>
             <label class="field">
               <span>V / I0</span>
-              <input id="ckt-src" type="text" value="12" />
+              <input id="ckt-src" type="text" value="12" / aria-label="V / I0">
             </label>
           </div>
         </div>
@@ -353,8 +412,8 @@
         <div id="form-imagefit" class="type-form">
           <p class="hint-line">上传曲线图 → 填写坐标轴范围 → 图上点击取点，或一键自动采样 → 拟合函数</p>
           <label class="field">
-            <span>上传图像</span>
-            <input id="img-file" type="file" accept="image/*" />
+              <span>上传图像</span>
+              <input id="img-file" type="file" accept="image/*" / aria-label="上传图像">
           </label>
           <div class="actions" style="margin-bottom:0.75rem">
             <button type="button" class="btn btn-tiny" id="btn-img-demo">加载演示图</button>
@@ -367,48 +426,49 @@
           <div class="field-row">
             <label class="field">
               <span>xmin</span>
-              <input id="img-xmin" type="text" value="0" />
+              <input id="img-xmin" type="text" value="0" / aria-label="xmin">
             </label>
             <label class="field">
               <span>xmax</span>
-              <input id="img-xmax" type="text" value="10" />
+              <input id="img-xmax" type="text" value="10" / aria-label="xmax">
             </label>
             <label class="field">
               <span>ymin</span>
-              <input id="img-ymin" type="text" value="-1" />
+              <input id="img-ymin" type="text" value="-1" / aria-label="ymin">
             </label>
             <label class="field">
               <span>ymax</span>
-              <input id="img-ymax" type="text" value="1" />
+              <input id="img-ymax" type="text" value="1" / aria-label="ymax">
             </label>
           </div>
           <div class="field-row">
             <label class="field">
               <span>拟合方式</span>
-              <select id="img-method">
+              <select id="img-method" aria-label="拟合方式">
                 <option value="poly">多项式最小二乘</option>
                 <option value="spline">三次样条（光滑插值）</option>
+                <option value="fourier">傅里叶级数截断（周期拟合）</option>
               </select>
             </label>
             <label class="field">
-              <span>多项式次数</span>
-              <input id="img-degree" type="text" value="3" />
+              <span>多项式次数 / 谐波阶数</span>
+              <input id="img-degree" type="text" value="3" / aria-label="多项式次数 / 谐波阶数">
             </label>
             <label class="field">
               <span>边距比例</span>
-              <input id="img-margin" type="text" value="0.06" />
+              <input id="img-margin" type="text" value="0.06" / aria-label="边距比例">
             </label>
           </div>
         </div>
 
         <div id="form-transform" class="type-form">
           <label class="field">
-            <span>信号 f(t)</span>
-            <input id="xf-f" type="text" value="exp(-0.3*t)*sin(2*PI*1.5*t)" />
+              <span>信号 f(t)</span>
+              <input id="xf-f" type="text" value="exp(-0.3*t)*sin(2*PI*1.5*t)" / aria-label="信号 f(t)">
           </label>
           <label class="field">
-            <span>变换类型</span>
-            <select id="xf-method">
+              <span>变换类型</span>
+              <select id="xf-method" aria-label="变换类型">
               <option value="fft">FFT 频谱</option>
               <option value="fourier">数值傅里叶</option>
               <option value="laplace">数值拉普拉斯</option>
@@ -417,32 +477,32 @@
           <div class="field-row">
             <label class="field">
               <span>t0</span>
-              <input id="xf-t0" type="text" value="0" />
+              <input id="xf-t0" type="text" value="0" / aria-label="t0">
             </label>
             <label class="field">
               <span>tf</span>
-              <input id="xf-tf" type="text" value="8" />
+              <input id="xf-tf" type="text" value="8" / aria-label="tf">
             </label>
             <label class="field">
               <span>点数 N / 网格</span>
-              <input id="xf-n" type="text" value="512" />
+              <input id="xf-n" type="text" value="512" / aria-label="点数 N / 网格">
             </label>
             <label class="field">
               <span>fMax (Hz)</span>
-              <input id="xf-fmax" type="text" value="5" />
+              <input id="xf-fmax" type="text" value="5" / aria-label="fMax (Hz)">
             </label>
           </div>
           <label class="field">
-            <span>拉普拉斯实部 σ（仅 Laplace）</span>
-            <input id="xf-sigma" type="text" value="0.5" />
+              <span>拉普拉斯实部 σ（仅 Laplace）</span>
+              <input id="xf-sigma" type="text" value="0.5" / aria-label="拉普拉斯实部 σ（仅 Laplace）">
           </label>
         </div>
 
         <div id="form-control" class="type-form">
           <p class="hint-line">面向自动化：阶跃 / PID / Bode / 电机 / 根轨迹 / Z 变换 / 极点配置 / 传感器标定</p>
           <label class="field">
-            <span>仿真类型</span>
-            <select id="ctl-method">
+              <span>仿真类型</span>
+              <select id="ctl-method" aria-label="仿真类型">
               <option value="second_order">二阶系统阶跃（ζ–ωn）</option>
               <option value="tf_step">传递函数阶跃响应</option>
               <option value="pid">PID 闭环控制</option>
@@ -481,25 +541,25 @@
             </label>
             <label class="field">
               <span>分母 / 特征多项式（高次→低次）</span>
-              <input id="ctl-den" type="text" value="1, 2, 2" />
+              <input id="ctl-den" type="text" value="1, 2, 2" / aria-label="分母 / 特征多项式（高次→低次）">
             </label>
           </div>
           <div class="field-row" id="ctl-row-pid" data-ctl="pid">
             <label class="field">
               <span>PID：Kp</span>
-              <input id="ctl-kp" type="text" value="2" />
+              <input id="ctl-kp" type="text" value="2" / aria-label="PID：Kp">
             </label>
             <label class="field">
               <span>Ki</span>
-              <input id="ctl-ki" type="text" value="1" />
+              <input id="ctl-ki" type="text" value="1" / aria-label="Ki">
             </label>
             <label class="field">
               <span>Kd</span>
-              <input id="ctl-kd" type="text" value="0.2" />
+              <input id="ctl-kd" type="text" value="0.2" / aria-label="Kd">
             </label>
             <label class="field">
               <span>对象</span>
-              <select id="ctl-plant">
+              <select id="ctl-plant" aria-label="对象">
                 <option value="first">一阶 τẏ+y=Ku</option>
                 <option value="second">二阶</option>
               </select>
@@ -526,15 +586,15 @@
           <div class="field-row" id="ctl-row-rlocus" data-ctl="rlocus">
             <label class="field">
               <span>根轨迹 K 最小</span>
-              <input id="ctl-kmin" type="text" value="0" />
+              <input id="ctl-kmin" type="text" value="0" / aria-label="根轨迹 K 最小">
             </label>
             <label class="field">
               <span>根轨迹 K 最大</span>
-              <input id="ctl-kmax" type="text" value="50" />
+              <input id="ctl-kmax" type="text" value="50" / aria-label="根轨迹 K 最大">
             </label>
             <label class="field">
               <span>K 采样点数</span>
-              <input id="ctl-nk" type="text" value="200" />
+              <input id="ctl-nk" type="text" value="200" / aria-label="K 采样点数">
             </label>
           </div>
           <div class="field-row" id="ctl-row-z" data-ctl="z_transform,z_tf_step">
@@ -544,7 +604,7 @@
             </label>
             <label class="field">
               <span>序列长度 N / 阶跃步数</span>
-              <input id="ctl-zn" type="text" value="64" />
+              <input id="ctl-zn" type="text" value="64" / aria-label="序列长度 N / 阶跃步数">
             </label>
             <label class="field" data-ctl="z_transform">
               <span>衰减 α（默认序列）</span>
@@ -558,39 +618,39 @@
           <div class="field-row" id="ctl-row-seq" data-ctl="z_transform">
             <label class="field">
               <span>自定义序列（可选，逗号分隔；空则用衰减正弦）</span>
-              <input id="ctl-seq" type="text" value="" placeholder="留空则自动生成" />
+              <input id="ctl-seq" type="text" value="" placeholder="留空则自动生成" / aria-label="自定义序列（可选，逗号分隔；空则用衰减正弦）">
             </label>
           </div>
           <div class="field-row" id="ctl-row-place" data-ctl="pole_place">
             <label class="field">
               <span>状态维数 n</span>
-              <input id="ctl-order" type="text" value="2" />
+              <input id="ctl-order" type="text" value="2" / aria-label="状态维数 n">
             </label>
             <label class="field">
               <span>A 矩阵（行主序，逗号分隔）</span>
-              <input id="ctl-A" type="text" value="0,1,-2,-3" />
+              <input id="ctl-A" type="text" value="0,1,-2,-3" / aria-label="A 矩阵（行主序，逗号分隔）">
             </label>
             <label class="field">
               <span>B 向量</span>
-              <input id="ctl-B" type="text" value="0,1" />
+              <input id="ctl-B" type="text" value="0,1" / aria-label="B 向量">
             </label>
             <label class="field">
               <span>期望极点（实数或 a±bj）</span>
-              <input id="ctl-poles" type="text" value="-4,-5" />
+              <input id="ctl-poles" type="text" value="-4,-5" / aria-label="期望极点（实数或 a±bj）">
             </label>
           </div>
           <div class="field-row" id="ctl-row-sensor" data-ctl="sensor_cal">
             <label class="field">
               <span>参考值 xref</span>
-              <input id="ctl-xref" type="text" value="0,1,2,3,4,5" />
+              <input id="ctl-xref" type="text" value="0,1,2,3,4,5" / aria-label="参考值 xref">
             </label>
             <label class="field">
               <span>测量值 ymeas</span>
-              <input id="ctl-ymeas" type="text" value="0.05,1.1,1.95,3.05,4.1,4.9" />
+              <input id="ctl-ymeas" type="text" value="0.05,1.1,1.95,3.05,4.1,4.9" / aria-label="测量值 ymeas">
             </label>
             <label class="field">
               <span>拟合次数</span>
-              <input id="ctl-caldeg" type="text" value="1" />
+              <input id="ctl-caldeg" type="text" value="1" / aria-label="拟合次数">
             </label>
           </div>
         </div>
@@ -600,38 +660,38 @@
           <div class="field-row">
             <label class="field">
               <span>差分格式</span>
-              <select id="pde-scheme">
+              <select id="pde-scheme" aria-label="差分格式">
                 <option value="ftcs">FTCS（显式）</option>
                 <option value="cn" selected>Crank–Nicolson</option>
               </select>
             </label>
             <label class="field">
               <span>扩散系数 α</span>
-              <input id="pde-alpha" type="text" value="0.1" />
+              <input id="pde-alpha" type="text" value="0.1" / aria-label="扩散系数 α">
             </label>
             <label class="field">
               <span>杆长 L</span>
-              <input id="pde-L" type="text" value="1" />
+              <input id="pde-L" type="text" value="1" / aria-label="杆长 L">
             </label>
           </div>
           <div class="field-row">
             <label class="field">
               <span>空间分段 nx</span>
-              <input id="pde-nx" type="text" value="40" />
+              <input id="pde-nx" type="text" value="40" / aria-label="空间分段 nx">
             </label>
             <label class="field">
               <span>终时 tf</span>
-              <input id="pde-tf" type="text" value="0.5" />
+              <input id="pde-tf" type="text" value="0.5" / aria-label="终时 tf">
             </label>
             <label class="field">
               <span>时间步 nt</span>
-              <input id="pde-nt" type="text" value="200" />
+              <input id="pde-nt" type="text" value="200" / aria-label="时间步 nt">
             </label>
           </div>
           <div class="field-row">
             <label class="field">
               <span>初值</span>
-              <select id="pde-ic">
+              <select id="pde-ic" aria-label="初值">
                 <option value="sine">sin(πx/L)</option>
                 <option value="tent">三角脉冲</option>
                 <option value="pulse">方脉冲</option>
@@ -639,11 +699,11 @@
             </label>
             <label class="field">
               <span>左边界 u(0)</span>
-              <input id="pde-uleft" type="text" value="0" />
+              <input id="pde-uleft" type="text" value="0" / aria-label="左边界 u(0)">
             </label>
             <label class="field">
               <span>右边界 u(L)</span>
-              <input id="pde-uright" type="text" value="0" />
+              <input id="pde-uright" type="text" value="0" / aria-label="右边界 u(L)">
             </label>
           </div>
         </div>
@@ -662,6 +722,7 @@
         </div>
       </div>
 
+      <div id="intent-warning" class="intent-warning" hidden role="alert" aria-live="assertive"></div>
       <div class="panel result-panel">
         <div class="panel-head row-between">
           <div>
