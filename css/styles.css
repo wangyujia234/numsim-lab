@@ -1556,6 +1556,30 @@ html[data-theme="light"] .agent-log {
   padding-left: 1.1rem;
 }
 
+.ai-review {
+  margin: 0.6rem 0 0.4rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent-2);
+  border-radius: var(--radius);
+  background: rgba(61, 184, 160, 0.08);
+  font-size: 0.86rem;
+}
+
+.ai-review-head {
+  margin: 0 0 0.3rem;
+}
+
+.ai-review-issue {
+  margin: 0.25rem 0;
+  color: var(--muted);
+}
+
+.ai-review-alt {
+  margin: 0.35rem 0 0;
+  color: var(--accent);
+}
+
 .report-plot {
   display: block;
   width: 100%;

@@ -1,7 +1,7 @@
 /** 多项式最小二乘拟合、图像自动采样、坐标映射 */
 
 import { cubicSpline } from "./interpolate.js";
-import { linspace } from "../math.js";
+import { linspace, formatNum } from "../math.js";
 
 function expandCenteredToRaw(centerCoef, mu, scale) {
   const m = centerCoef.length - 1;
@@ -220,15 +220,21 @@ function sortUnique(x, y) {
   return { xs, ys };
 }
 
-function fourierFit(x, y, nHarmonic) {
-  const L = Math.max(x[x.length - 1] - x[0], 1e-9);
-  const x0 = x[0];
-  const K = Math.max(1, Math.min(nHarmonic | 0, 8, Math.floor((x.length - 1) / 2)));
+function fourierEval(coef, K, omega, x0, x) {
+  const t = omega * (x - x0);
+  let s = coef[0];
+  for (let k = 1; k <= K; k++) s += coef[2 * k - 1] * Math.cos(k * t) + coef[2 * k] * Math.sin(k * t);
+  return s;
+}
+
+/** 岭正则化的三角最小二乘：返回系数与该频率下的残差平方和 */
+function fourierLstsq(xs, ys, K, omega) {
+  const n = xs.length;
   const cols = 1 + 2 * K;
   const A = Array.from({ length: cols }, () => new Array(cols).fill(0));
   const b = new Array(cols).fill(0);
-  for (let i = 0; i < x.length; i++) {
-    const t = (2 * Math.PI * (x[i] - x0)) / L;
+  for (let i = 0; i < n; i++) {
+    const t = omega * (xs[i] - xs[0]);
     const row = new Array(cols);
     row[0] = 1;
     for (let k = 1; k <= K; k++) {
@@ -236,22 +242,71 @@ function fourierFit(x, y, nHarmonic) {
       row[2 * k] = Math.sin(k * t);
     }
     for (let r = 0; r < cols; r++) {
-      b[r] += row[r] * y[i];
-      for (let c = 0; c < cols; c++) A[r][c] += row[r] * row[c];
+      b[r] += row[r] * ys[i];
+      for (let c = 0; c <= r; c++) A[r][c] += row[r] * row[c];
     }
   }
+  for (let r = 0; r < cols; r++) for (let c = 0; c < r; c++) A[r][c] = A[c][r];
+  let tr = 0;
+  for (let i = 0; i < cols; i++) tr += A[i][i];
+  const lambda = 1e-9 * (tr / cols + 1);
+  for (let i = 0; i < cols; i++) A[i][i] += lambda;
   const coef = solveSymmetric(A, b);
-  return { coef, K, L, x0 };
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    const e = ys[i] - fourierEval(coef, K, omega, xs[0], xs[i]);
+    sse += e * e;
+  }
+  return { coef, sse };
 }
 
-function fourierVal(coef, K, L, x0, x) {
-  const t = (2 * Math.PI * (x - x0)) / L;
-  let s = coef[0];
-  for (let k = 1; k <= K; k++) s += coef[2 * k - 1] * Math.cos(k * t) + coef[2 * k] * Math.sin(k * t);
-  return s;
+/** 在给定 K 下对基频 ω 做对数网格搜索 + 局部细化 */
+function fourierSearchOmega(xs, ys, K) {
+  const L = Math.max(xs[xs.length - 1] - xs[0], 1e-9);
+  const wMin = (2 * Math.PI) / (3 * L);
+  const wMax = (8 * Math.PI) / L;
+  const NC = 96;
+  const ratio = wMax / wMin;
+  let bestK = null;
+  for (let i = 0; i < NC; i++) {
+    const w = wMin * Math.pow(ratio, i / (NC - 1));
+    let r;
+    try {
+      r = fourierLstsq(xs, ys, K, w);
+    } catch {
+      continue;
+    }
+    // 频率按升序扫描：新频率须显著更优（SSE 降 2%+）才替换，避免高频过拟合
+    if (!bestK || r.sse < bestK.sse * 0.98) bestK = { ...r, K, omega: w };
+  }
+  if (!bestK) throw new Error("傅里叶频率搜索失败，请检查采样点");
+  const step = Math.pow(ratio, 1 / (NC - 1));
+  let best = bestK;
+  for (let i = 0; i < 24; i++) {
+    const w = bestK.omega * (1 / step + ((step - 1 / step) * i) / 23);
+    try {
+      const r = fourierLstsq(xs, ys, K, w);
+      if (r.sse < best.sse) best = { ...r, K, omega: w };
+    } catch {
+      continue;
+    }
+  }
+  return best;
 }
 
-function formatFourier(coef, K) {
+/** BIC 自动选谐波数：用户设置值作为上限 */
+function pickFourier(xs, ys, Kmax) {
+  const n = xs.length;
+  let best = null;
+  for (let K = Kmax; K >= 1; K--) {
+    const r = fourierSearchOmega(xs, ys, K);
+    const bic = n * Math.log(Math.max(r.sse, 1e-300) / n) + (1 + 2 * K) * Math.log(n);
+    if (!best || bic < best.bic - 1e-9) best = { ...r, bic };
+  }
+  return best;
+}
+
+function formatFourier(coef, K, omega) {
   const parts = [`${Number(coef[0].toPrecision(4))}`];
   for (let k = 1; k <= K; k++) {
     const a = coef[2 * k - 1];
@@ -259,7 +314,8 @@ function formatFourier(coef, K) {
     if (Math.abs(a) > 1e-10) parts.push(`${a >= 0 ? "+" : "-"} ${Math.abs(Number(a.toPrecision(4)))}·cos(${k}ωx)`);
     if (Math.abs(b) > 1e-10) parts.push(`${b >= 0 ? "+" : "-"} ${Math.abs(Number(b.toPrecision(4)))}·sin(${k}ωx)`);
   }
-  return `y ≈ ${parts.join(" ")}  (ω=2π/L, 截断 K=${K})`;
+  const T = (2 * Math.PI) / omega;
+  return `y ≈ ${parts.join(" ")}  (基频 ω≈${formatNum(omega, 4)} rad/x，周期 T≈${formatNum(T, 4)}，K=${K})`;
 }
 
 export function runImageFit({ x, y, degree, method, nHarmonic }) {
@@ -275,26 +331,20 @@ export function runImageFit({ x, y, degree, method, nHarmonic }) {
   let deg = Math.max(1, Math.min(Number(degree) || 3, xs.length - 1, 8));
   let r2;
   let err;
+  let omegaUsed = null;
 
   if (method === "fourier") {
-    let K = Math.max(1, Math.min(Number(nHarmonic) || Number(degree) || 5, 8, Math.floor((xs.length - 1) / 2)));
-    let fc, L, x0, Kused = K;
-    for (let ktry = K; ktry >= 1; ktry--) {
-      try {
-        const res = fourierFit(xs, ys, ktry);
-        fc = res.coef; L = res.L; x0 = res.x0; Kused = res.K;
-        break;
-      } catch (e) {
-        if (ktry === 1) throw e;
-      }
-    }
-    K = Kused;
+    // 用户的输入 = 谐波数上限；用 BIC 在 [1, Kmax] 内自动选阶并搜索基频 ω
+    const Kmax = Math.max(1, Math.min(Number(nHarmonic) || Number(degree) || 5, 8, Math.floor((xs.length - 1) / 2)));
+    const { coef: fc, K: Kused, omega } = pickFourier(xs, ys, Kmax);
+    const x0 = xs[0];
     coef = fc;
-    denseY = denseX.map((xi) => fourierVal(fc, K, L, x0, xi));
-    equation = formatFourier(fc, K);
+    omegaUsed = omega;
+    denseY = denseX.map((xi) => fourierEval(fc, Kused, omega, x0, xi));
+    equation = formatFourier(fc, Kused, omega);
     let s = 0, c = 0;
     for (let i = 0; i < xs.length; i++) {
-      const e = ys[i] - fourierVal(fc, K, L, x0, xs[i]);
+      const e = ys[i] - fourierEval(fc, Kused, omega, x0, xs[i]);
       const v = e * e;
       const t = s + v;
       if (Math.abs(s) >= Math.abs(v)) c += (s - t) + v; else c += (v - t) + s;
@@ -322,6 +372,23 @@ export function runImageFit({ x, y, degree, method, nHarmonic }) {
     err = rmse(xs, ys, coef);
   }
 
+  const yRange = Math.max(...ys) - Math.min(...ys);
+  let fitNote = "";
+  if (method === "fourier" && omegaUsed != null) {
+    const omega = omegaUsed;
+    const Lspan = xmax - xmin;
+    const wMin = (2 * Math.PI) / (3 * Math.max(Lspan, 1e-9));
+    const wMax = (8 * Math.PI) / Math.max(Lspan, 1e-9);
+    if (err > 0.12 * Math.max(yRange, 1e-12)) {
+      fitNote =
+        "截断傅里叶级数假设曲线在采样区间上近似周期。若曲线非周期、存在断裂/陡峭段，或谐波数不足，残差会偏大（吉布斯现象）：可尝试增大「谐波阶数」，或改用多项式/样条拟合。";
+    } else if (omega <= wMin * 1.02) {
+      fitNote = "基频取到搜索下界：曲线在采样区间内可能不足一个完整周期，周期拟合结果仅供参考。";
+    } else if (omega >= wMax * 0.98) {
+      fitNote = "基频达到搜索上界：曲线可能含高频成分或采样噪声，结果需谨慎解读。";
+    }
+  }
+
   return {
     sampleX: xs,
     sampleY: ys,
@@ -331,8 +398,11 @@ export function runImageFit({ x, y, degree, method, nHarmonic }) {
     equation,
     degree: deg,
     method: method === "fourier" ? "fourier" : method === "spline" ? "spline" : "poly",
-    nHarmonic: method === "fourier" ? (coef ? (coef.length - 1) / 2 : Number(nHarmonic) || 5) : undefined,
+    nHarmonic: method === "fourier" ? (coef ? (coef.length - 1) / 2 : undefined) : undefined,
+    omega: method === "fourier" ? omegaUsed : undefined,
+    period: method === "fourier" && omegaUsed != null ? (2 * Math.PI) / omegaUsed : undefined,
     r2,
     rmse: err,
+    ...(fitNote ? { fitNote } : {}),
   };
 }

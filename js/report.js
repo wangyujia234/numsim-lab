@@ -230,13 +230,20 @@ export function metricsFromResult(type, result, payload) {
     return rows;
   }
   if (type === "imagefit") {
-    return [
+    const rows = [
       { label: "采样点数", value: result.sampleX.length },
       { label: "拟合方程", value: result.equation },
-      { label: "次数", value: result.degree },
-      { label: "R²", value: formatNum(result.r2, 6) },
-      { label: "RMSE", value: formatNum(result.rmse, 6) },
     ];
+    if (result.method === "fourier") {
+      rows.push({ label: "基频 ω", value: `${formatNum(result.omega, 5)} rad/x（T≈${formatNum(result.period, 5)}）` });
+      rows.push({ label: "谐波数 K", value: result.nHarmonic });
+    } else {
+      rows.push({ label: "次数", value: result.degree });
+    }
+    rows.push({ label: "R²", value: formatNum(result.r2, 6) });
+    rows.push({ label: "RMSE", value: formatNum(result.rmse, 6) });
+    if (result.fitNote) rows.push({ label: "拟合提示", value: result.fitNote });
+    return rows;
   }
   if (type === "transform") {
     if (result.compare) {

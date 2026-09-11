@@ -13,6 +13,7 @@ import { createDigitizer } from "./imageDigitizer.js";
 import { parseNumberList, formatNum } from "./math.js";
 import { buildReport, metricsFromResult } from "./report.js";
 import { analyzeWithDeepSeek, loadAiSettings, saveAiSettings } from "./deepseek.js";
+import { reviewDeepSeekPlan } from "./aiReviewer.js";
 import { validatePayload } from "./validate.js";
 import { loadHistory, saveHistoryEntry, getHistoryEntry, clearHistory } from "./history.js";
 import { attachAnalytical } from "./analytical.js";
@@ -1996,6 +1997,7 @@ function confirmAiPlan(plan) {
   }
   const summary = $("ai-confirm-summary");
   const list = $("ai-confirm-fields");
+  const reviewBox = $("ai-confirm-review");
   if (summary) {
     summary.textContent = `${TYPE_LABELS[plan.type] || plan.type} · ${plan.algorithmName || plan.algorithm} — ${plan.reason || ""}`;
   }
@@ -2004,6 +2006,22 @@ function confirmAiPlan(plan) {
     list.innerHTML = entries
       .map(([k, v]) => `<li><code>${escapeHtml(k)}</code> = ${escapeHtml(String(v))}</li>`)
       .join("");
+  }
+  // 本地审查意见直接进弹窗：一致则显示通过，分歧则给出本地建议方案可一键切换
+  if (reviewBox) {
+    const review = plan.review;
+    if (!review) {
+      reviewBox.hidden = true;
+      reviewBox.innerHTML = "";
+    } else {
+      reviewBox.hidden = false;
+      const badge = review.agreement === "agree" ? "审查通过" : review.agreement === "disagree-type" ? "类型分歧" : "已修正细节";
+      reviewBox.innerHTML = `
+        <p class="ai-review-head"><strong>本地审查 · ${escapeHtml(badge)}</strong> — ${escapeHtml(review.summary)}</p>
+        ${review.issues.map((s) => `<p class="ai-review-issue">${escapeHtml(s)}</p>`).join("")}
+        ${review.agreement === "disagree-type" ? `<p class="ai-review-alt">本地建议：「${escapeHtml(TYPE_LABELS[review.localType] || review.localType)}」。点击下方「用本地规则」则按本地判型重跑；「留在表单修改」可人工调整后重试。</p>` : ""}
+      `;
+    }
   }
   return new Promise((resolve) => {
     const onClose = () => {
@@ -2138,6 +2156,48 @@ function restoreSharedSession() {
   return true;
 }
 
+/**
+ * 本地规则 Agent 的完整决策路径（自动补参 → 多标签判型 → 选算法 → 校验）。
+ * 「纯本地模式」与「DeepSeek 降级」共用同一条路径，避免两套逻辑漂移。
+ */
+function runLocalAgentDecision({ nl, source = "agent" }) {
+  const notes = [];
+  if (state.type !== "imagefit" && !/图像|图片|拟合曲线/.test(nl)) {
+    const hasData = formsHaveData(state.type);
+    const filled = applyAutofill({
+      forceGenerate: false,
+      allowGenerate: !hasData,
+      onlyEmpty: hasData,
+    });
+    if (filled) notes.push(...filled.notes.map((n) => `自动数据：${n}`));
+  }
+  // 判型复用 agent.js 的多标签检测（唯一真实来源），不再本地重写一套关键词
+  const typeHint = detectTypeFromText(nl, state.type || "interpolate");
+  const roughPayload = (() => {
+    try {
+      return readPayload(typeHint);
+    } catch {
+      return {};
+    }
+  })();
+  const decision = decide({ type: typeHint, nl, payload: roughPayload });
+  if (decision.type !== state.type) {
+    setType(decision.type);
+    if (decision.type !== "imagefit" && !formsHaveData(decision.type)) {
+      const again = applyAutofill({ allowGenerate: true });
+      if (again) notes.push(...again.notes.map((n) => `自动数据：${n}`));
+    }
+  }
+  const payload = readPayload(decision.type);
+  validatePayload(decision.type, payload);
+  let decision2 = decide({ type: decision.type, nl, payload });
+  Object.assign(decision2.overrides, decision.overrides);
+  decision2.source = source;
+  decision2.nl = nl;
+  decision2 = enrichDecisionNames(decision2, payload);
+  return { decision2, payload, notes };
+}
+
 async function runPipeline(opts = {}) {
   // 防止并发：正在运行时直接忽略新的触发
   if (state.running) return false;
@@ -2183,6 +2243,21 @@ async function runPipeline(opts = {}) {
           { nl, typeHint: state.type, formSnapshot: collectFormSnapshot() },
           aiSettings
         );
+        // DeepSeek 只负责“提议”：先过本地审查（类型一致性 / 关键字段 / 表达式可编译），再由用户仲裁
+        const review = await reviewDeepSeekPlan({ nl, localHits: plan.localHints }, plan);
+        plan.review = review;
+        logSteps([
+          "DeepSeek 方案已返回",
+          review.summary,
+          ...review.issues.map((s) => `本地审查：${s}`),
+        ]);
+        if (review.agreement === "disagree-type") {
+          logSteps([
+            "方案存在类型分歧，等待用户仲裁",
+            `DeepSeek：${TYPE_LABELS[plan.type] || plan.type}`,
+            `本地规则：${TYPE_LABELS[review.localType] || review.localType}`,
+          ]);
+        }
         const choice = await confirmAiPlan(plan);
         if (choice === "edit") {
           setType(plan.type);
@@ -2199,8 +2274,18 @@ async function runPipeline(opts = {}) {
           throw new Error("用户选择改用本地 Agent");
         }
         setType(plan.type);
-        applyAiFields(plan.fields);
+        // 模型给出的非法表达式不写入表单，改由本地 autofill 兜底
+        const droppedExpr = Object.entries(review.fixes || {})
+          .filter(([, v]) => v === null)
+          .map(([k]) => k);
+        const safeFields = { ...plan.fields };
+        for (const id of droppedExpr) delete safeFields[id];
+        applyAiFields(safeFields);
         if (plan.type === "control") syncControlFields();
+        if (droppedExpr.length) {
+          const fb = applyAutofill({ forceGenerate: false, allowGenerate: true, onlyEmpty: true, fixedType: plan.type });
+          if (fb && fb.notes.length) autofillNotes.push(...fb.notes.map((n) => `本地兜底：${n}`));
+        }
         payload = readPayload(plan.type);
         validatePayload(plan.type, payload);
         decision2 = {
@@ -2213,9 +2298,11 @@ async function runPipeline(opts = {}) {
             "用户已确认 AI 方案",
             ...plan.steps,
             ...(plan.notes || []).map((n) => `备注：${n}`),
+            `本地审查：${review.summary}`,
+            ...review.issues.map((s) => `本地审查：${s}`),
           ],
           overrides: plan.type === "circuit" ? { topo: plan.algorithm } : {},
-          source: "deepseek",
+          source: review.agreement === "agree" ? "deepseek" : "deepseek+本地审查",
           nl,
         };
         decision2 = enrichDecisionNames(decision2, payload);
@@ -2228,96 +2315,17 @@ async function runPipeline(opts = {}) {
             : `DeepSeek 失败：${aiErr.message} → 已降级本地 Agent`,
         ];
         logSteps([...autofillNotes, "改用规则 Agent 分析…"]);
-        if (state.type !== "imagefit" && !/图像|图片|拟合曲线/.test(nl)) {
-          const hasData = formsHaveData(state.type);
-          const filled = applyAutofill({
-            forceGenerate: false,
-            allowGenerate: !hasData,
-            onlyEmpty: hasData,
-          });
-          if (filled) autofillNotes.push(...filled.notes.map((n) => `自动数据：${n}`));
-        }
-        let typeHint = state.type;
-        if (/热方程|热传导|扩散方程|pde|偏微分/.test(nl)) typeHint = "pde";
-        else if (/图像|图片|拟合曲线|digitiz/.test(nl)) typeHint = "imagefit";
-        else if (/电路|rlc|电容|电感|谐振|阻抗|频响/.test(nl)) typeHint = "circuit";
-        else if (/傅里叶|fft|拉普拉斯|laplace|积分变换|频谱/.test(nl)) typeHint = "transform";
-        else if (
-          /pid|bode|传递函数|二阶系统|直流电机|控制系统|相位裕度|伺服|根轨迹|极点配置|z\s*变换|jury|传感器标定|离散.*传递/.test(nl) ||
-          (/阶跃响应/.test(nl) && !/电路|rlc/.test(nl))
-        )
-          typeHint = "control";
-
-        const roughPayload = (() => {
-          try {
-            return readPayload(typeHint);
-          } catch {
-            return {};
-          }
-        })();
-        const decision = decide({ type: typeHint, nl, payload: roughPayload });
-        if (decision.type !== state.type) {
-          setType(decision.type);
-          if (decision.type !== "imagefit" && !formsHaveData(decision.type)) {
-            const again = applyAutofill({ allowGenerate: true });
-            if (again) autofillNotes.push(...again.notes.map((n) => `自动数据：${n}`));
-          }
-        }
-        payload = readPayload(decision.type);
-        validatePayload(decision.type, payload);
-        decision2 = decide({ type: decision.type, nl, payload });
-        Object.assign(decision2.overrides, decision.overrides);
-        decision2.source = "agent-fallback";
-        decision2.nl = nl;
-        decision2 = enrichDecisionNames(decision2, payload);
+        const local = runLocalAgentDecision({ nl, source: "agent-fallback" });
+        decision2 = local.decision2;
+        payload = local.payload;
+        autofillNotes.push(...local.notes);
       }
     } else {
-      // 图像拟合依赖画布取点，不走表单自动生成覆盖
-      if (state.type !== "imagefit" && !/图像|图片|拟合曲线/.test(nl)) {
-        const hasData = formsHaveData(state.type);
-        const filled = applyAutofill({
-          forceGenerate: false,
-          allowGenerate: !hasData,
-          onlyEmpty: hasData,
-        });
-        if (filled) autofillNotes = filled.notes.map((n) => `自动数据：${n}`);
-      }
-
-      let typeHint = state.type;
-      if (/热方程|热传导|扩散方程|pde|偏微分/.test(nl)) typeHint = "pde";
-      else if (/图像|图片|拟合曲线|digitiz/.test(nl)) typeHint = "imagefit";
-      else if (/电路|rlc|电容|电感|谐振|阻抗|频响/.test(nl)) typeHint = "circuit";
-      else if (/傅里叶|fft|拉普拉斯|laplace|积分变换|频谱/.test(nl)) typeHint = "transform";
-      else if (
-        /pid|bode|传递函数|二阶系统|直流电机|控制系统|相位裕度|伺服|根轨迹|极点配置|z\s*变换|jury|传感器标定|离散.*传递/.test(nl) ||
-        (/阶跃响应/.test(nl) && !/电路|rlc/.test(nl))
-      )
-        typeHint = "control";
-
-      const roughPayload = (() => {
-        try {
-          return readPayload(typeHint);
-        } catch {
-          return {};
-        }
-      })();
-
-      const decision = decide({ type: typeHint, nl, payload: roughPayload });
-      if (decision.type !== state.type) {
-        setType(decision.type);
-        if (decision.type !== "imagefit" && !formsHaveData(decision.type)) {
-          const again = applyAutofill({ allowGenerate: true });
-          if (again) autofillNotes = again.notes.map((n) => `自动数据：${n}`);
-        }
-      }
-
-      payload = readPayload(decision.type);
-      validatePayload(decision.type, payload);
-      decision2 = decide({ type: decision.type, nl, payload });
-      Object.assign(decision2.overrides, decision.overrides);
-      decision2.source = "agent";
-      decision2.nl = nl;
-      decision2 = enrichDecisionNames(decision2, payload);
+      // 纯本地模式：与降级路径共用同一决策函数，保证行为一致
+      const local = runLocalAgentDecision({ nl, source: "agent" });
+      decision2 = local.decision2;
+      payload = local.payload;
+      autofillNotes = local.notes;
     }
 
     if (state.activeAssignment) {
@@ -2484,6 +2492,7 @@ async function runPipeline(opts = {}) {
       sim.stabilityNote || "",
       sim.singularNote || "",
       sim.numericsWarning || "",
+      sim.fitNote || "",
       selfCheck ? `自检${selfCheck.pass ? "通过" : "未通过"}：${selfCheck.message}` : "",
       state.mode === "homework" ? `验真印章 ${stamp.seal} · ${ENGINE_VERSION}` : "",
     ]

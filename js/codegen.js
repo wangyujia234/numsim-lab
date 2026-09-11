@@ -283,6 +283,56 @@ function genImageFit(decision, p, result) {
   const y = JSON.stringify(p.y);
   const deg = p.degree || 3;
   const eq = result?.equation || "";
+  if (decision.algorithm === "fourier" || result?.method === "fourier") {
+    const K = result?.nHarmonic ?? deg;
+    const omega = result?.omega;
+    const coef = Array.isArray(result?.coef) ? result.coef : [];
+    const python = `import numpy as np
+import matplotlib.pyplot as plt
+
+# Digitized from image; fitted: ${eq}
+x = np.array(${x})
+y = np.array(${y})
+K = ${K}
+w = ${Number.isFinite(omega) ? omega : "2*np.pi/(x.max()-x.min())"}  # fitted base frequency
+coef = np.array(${JSON.stringify(coef)})
+
+def yhat(t):
+    s = coef[0]
+    for k in range(1, K + 1):
+        s = s + coef[2*k-1]*np.cos(k*w*(t-x[0])) + coef[2*k]*np.sin(k*w*(t-x[0]))
+    return s
+
+xd = np.linspace(x.min(), x.max(), 300)
+yd = yhat(xd)
+
+plt.figure(figsize=(8, 4.5))
+plt.plot(xd, yd, label='fourier fit')
+plt.plot(x, y, 'o', label='digitized')
+plt.grid(True); plt.legend()
+plt.title(${JSON.stringify(eq)})
+plt.xlabel('x'); plt.ylabel('y')
+plt.show()
+print('K =', K, 'omega =', w)
+`;
+    const matlab = `% ${decision.algorithmName}
+% ${eq}
+x = ${matlabRow(p.x)};
+y = ${matlabRow(p.y)};
+K = ${K};
+w = ${Number.isFinite(omega) ? omega : "2*pi/(max(x)-min(x))"};
+c = [${coef.map((v) => String(v)).join(" ")}];
+x0 = x(1);
+xd = linspace(min(x), max(x), 300);
+yd = c(1)*ones(size(xd));
+for k = 1:K
+  yd = yd + c(2*k)*cos(k*w*(xd-x0)) + c(2*k+1)*sin(k*w*(xd-x0));
+end
+figure; plot(xd, yd, 'LineWidth', 1.4); hold on;
+plot(x, y, 'o'); grid on; legend('fourier fit','digitized');
+`;
+    return { python, matlab };
+  }
   const python = `import numpy as np
 import matplotlib.pyplot as plt
 

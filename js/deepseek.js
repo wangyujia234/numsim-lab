@@ -172,7 +172,13 @@ export function saveAiSettings(settings) {
 
 
 
-function systemPrompt() {
+function systemPrompt(ctx = {}) {
+
+  const hits = Array.isArray(ctx.localHits) ? ctx.localHits : [];
+
+  const hitLine = hits.length
+    ? `本地规则引擎对问题的多标签检测结果（按优先级）：${hits.join(" > ")}。你的 type 若与首个标签不一致，将在确认弹窗中标注分歧并由用户仲裁。`
+    : "本地规则引擎未能从描述中检出问题类型，请你给出 type 并在 notes 里解释判断依据。";
 
   return `你是 NumSim Lab 的数值仿真规划助手。根据用户中文问题，选择模块与算法，并给出可执行参数。
 
@@ -228,6 +234,10 @@ ${Object.entries(ALLOWED.algorithms)
 
 - PDE: pde-alpha, pde-L, pde-nx, pde-tf, pde-nt, pde-ic, pde-uleft, pde-uright
 
+当前上下文：用户在「${ctx.typeHint || "未知"}」模块，表单快照里已有数据的字段不要重复给出默认值；采样点数与已有表达式以下面用户消息里的 currentForm 为准。
+
+${hitLine}
+
 
 
 规则：
@@ -244,7 +254,9 @@ ${Object.entries(ALLOWED.algorithms)
 
 6. 热传导 / 热方程 / PDE / 扩散方程 → type=pde, algorithm=heat1d 或 heat1d_cn（Crank–Nicolson）。
 
-7. 离散传递函数阶跃 / Z 域 TF → z_tf_step；Jury 判稳 → jury。`;
+7. 离散传递函数阶跃 / Z 域 TF → z_tf_step；Jury 判稳 → jury。
+
+8. 问题可能包含多个意图（如同时提到图像拟合与傅里叶变换）：你一次只能选择一个 type+algorithm 执行，选优先级最高者，并在 notes 里明确写出未覆盖的子需求（本地会把它们记成告警进报告）。`;
 
 }
 
@@ -440,7 +452,14 @@ export async function analyzeWithDeepSeek(ctx, settings) {
 
   if (!nl) throw new Error("请先填写问题描述，再使用 DeepSeek 分析");
 
-
+  // 直接复用同一套本地规则（agent.js 的 detectAllTypes），避免 AI/本地两套关键词漂移
+  let localHits = [];
+  try {
+    const { detectAllTypes } = await import("./agent.js");
+    localHits = detectAllTypes(nl);
+  } catch {
+    localHits = [];
+  }
 
   const userPayload = {
 
@@ -450,13 +469,15 @@ export async function analyzeWithDeepSeek(ctx, settings) {
 
     currentForm: ctx.formSnapshot || {},
 
+    localHints: localHits,
+
   };
 
 
 
   const messages = [
 
-    { role: "system", content: systemPrompt() },
+    { role: "system", content: systemPrompt({ typeHint: ctx.typeHint, localHits }) },
 
     {
 
@@ -555,6 +576,8 @@ export async function analyzeWithDeepSeek(ctx, settings) {
   plan.usage = data.usage || null;
 
   plan.via = via;
+
+  plan.localHints = localHits;
 
   return plan;
 

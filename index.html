@@ -874,11 +874,12 @@
     <form method="dialog" class="ai-dialog-body">
       <h3>确认 DeepSeek 分析方案</h3>
       <p class="muted" id="ai-confirm-summary"></p>
+      <div id="ai-confirm-review" class="ai-review" hidden></div>
       <ul id="ai-confirm-fields" class="ai-confirm-fields"></ul>
       <div class="actions">
         <button type="submit" class="btn btn-primary" value="confirm" id="ai-confirm-ok">确认并仿真</button>
         <button type="submit" class="btn btn-ghost" value="edit">留在表单修改</button>
-        <button type="submit" class="btn btn-ghost" value="fallback">改用本地 Agent</button>
+        <button type="submit" class="btn btn-ghost" value="fallback" id="ai-confirm-fallback">用本地规则</button>
       </div>
     </form>
   </dialog>
